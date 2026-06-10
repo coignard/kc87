@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  integrity:
+    name: Integrity
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+    - name: Verify assets integrity
+      run: |
+        echo "22948c0d106c505c80150b6bfefbf725d59748c372a1de5134f60b56b6ad119f  firmware/kc87/os.rom" > SHA256SUMS
+        echo "a704c01df63b954237da322a928944063f33825b5039ef741aaa682afd3fcc19  firmware/kc87/basic.rom" >> SHA256SUMS
+        echo "a2164c10f747a921dcfaac4a653770f13d802e60182ad20878b9d201f27310d1  firmware/kc87/chargen.rom" >> SHA256SUMS
+        echo "dd69a923b0cb75ca673bfc840da76843a1a3101ef92cb746eb67d38c27660960  firmware/z9001/os_1.rom" >> SHA256SUMS
+        echo "aa6cd1fb8dfa0e59da71c3dcd4e2df98e6264ccc0d4ff1a6dc5e25bcb4782723  firmware/z9001/os_2.rom" >> SHA256SUMS
+        echo "39ba8359420e379ebcc6445bcaeebba1e332b0f4c1602b685f922b8b2c5e21c2  firmware/z9001/basic.rom" >> SHA256SUMS
+        echo "da7c87735a96d02dbb3815ad3df82182698c12a7fef2c3f6e64161d1912d40ad  firmware/z9001/chargen.rom" >> SHA256SUMS
+        sha256sum --check SHA256SUMS
+
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        rust: [stable]
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ matrix.rust }}
+    - name: Install ALSA
+      if: matrix.os == 'ubuntu-latest'
+      run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+    - name: Run tests
+      run: cargo test --verbose
+    - name: Run doc-tests
+      run: cargo test --doc --verbose
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy
+    - name: Install ALSA
+      run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+    - name: Run clippy
+      run: cargo clippy --release -- -D warnings
+
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+
+  deny:
+    name: Deny
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+    - uses: EmbarkStudios/cargo-deny-action@v2
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+    - uses: dtolnay/rust-toolchain@stable
+    - name: Install ALSA
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
+    - name: Generate coverage
+      run: cargo llvm-cov --all-features --workspace --codecov --output-path codecov.json
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v6
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: codecov.json
+        fail_ci_if_error: true
