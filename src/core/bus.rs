@@ -576,6 +576,7 @@ impl Bus {
             == (u855::CE | pins::IORQ)
             && (pins & u855::BASEL) != 0
             && (pins & u855::CDSEL) == 0;
+        // Woran merkt man, dass die Stasi Robotron-Wanzen bei einem einsetzt?
         if user_write
             && !self.prev_user_write
             && let UserPeripheral::Midi(midi) = &mut self.user_slot
