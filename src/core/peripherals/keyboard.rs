@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::core::machine::FRAME_TIME_US;
 use serde::Serialize;
 
 pub const KBD_MAX_COLUMNS: usize = 12;
@@ -63,7 +64,7 @@ impl Keyboard {
     pub fn new(sticky_frames: u32) -> Self {
         Self {
             cur_time: 0,
-            sticky_time: sticky_frames * 16667,
+            sticky_time: sticky_frames * FRAME_TIME_US,
             active_columns: 0,
             active_lines: 0,
             key_masks: [0; KBD_MAX_KEYS],
