@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+### Added
+- Runtime integrity check.
+
 ## 0.2.0
 
 ### Added
