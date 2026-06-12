@@ -34,6 +34,27 @@ pub const MAX_FRAME_CYCLES: u32 = DEFAULT_FRAME_CYCLES * 2 + 1;
 pub const FRAME_TIME_US: u32 = 1_000_000 / FRAME_RATE_HZ;
 
 const BOOT_DELAY_CYCLES: u64 = CLOCK_HZ as u64 * 2;
+const BASIC_START_DELAY_CYCLES: u64 = CLOCK_HZ as u64 / 2;
+const KBD_BUF_CHAR: usize = 0x0024;
+const KBD_BUF_FLAG: usize = 0x0025;
+const KEY_RETURN: u8 = 0x0D;
+const SSS_LAUNCH_KEYS: &[u8] = b"BASIC\r";
+const SSS_RUN_KEYS: &[u8] = b"RUN\r";
+const SCREEN_STABLE_FRAMES: u32 = 8;
+
+#[derive(Clone, Copy)]
+enum SssStage {
+    Launch(usize),
+    AwaitMemPrompt(u64),
+    AnswerMem,
+    AwaitMemConsumed,
+    AwaitInit {
+        last: u32,
+        stable: u32,
+        changed: bool,
+    },
+    Autorun(usize),
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MachineType {
@@ -64,6 +85,8 @@ pub struct Hardware {
     pub ram: RamSize,
     pub chargen: bool,
     pub graphics: GraphicsModule,
+    pub c80: bool,
+    pub rtc: bool,
 }
 
 impl Default for Hardware {
@@ -72,6 +95,8 @@ impl Default for Hardware {
             ram: RamSize::Default,
             chargen: false,
             graphics: GraphicsModule::None,
+            c80: false,
+            rtc: false,
         }
     }
 }
@@ -103,10 +128,20 @@ pub struct MachineState<'a> {
     pub bus: &'a Bus,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LoadFormat {
+    #[default]
+    Auto,
+    Sss,
+}
+
 struct PendingLoad {
     data: Vec<u8>,
+    format: LoadFormat,
     autorun: bool,
     at_cycle: u64,
+    stage: SssStage,
 }
 
 pub struct Machine {
@@ -153,11 +188,13 @@ impl Machine {
         }
     }
 
-    pub fn schedule_load(&mut self, data: Vec<u8>, autorun: bool) {
+    pub fn schedule_load(&mut self, data: Vec<u8>, format: LoadFormat, autorun: bool) {
         self.pending_load = Some(PendingLoad {
             data,
+            format,
             autorun,
             at_cycle: self.total_cycles + BOOT_DELAY_CYCLES,
+            stage: SssStage::Launch(0),
         });
     }
 
@@ -337,6 +374,145 @@ impl Machine {
         }
     }
 
+    fn basic_beg_addr(&self) -> u16 {
+        if matches!(self.machine_type, MachineType::KC87) {
+            0x0401
+        } else {
+            0x2C01
+        }
+    }
+
+    fn feed_key(&mut self, key: u8) {
+        self.bus.ram[KBD_BUF_CHAR] = key;
+        self.bus.ram[KBD_BUF_FLAG] = key;
+    }
+
+    fn screen_checksum(&self) -> u32 {
+        self.bus.ram[0xEC00..0xF000]
+            .iter()
+            .fold(0u32, |acc, &b| acc.wrapping_mul(31).wrapping_add(b as u32))
+    }
+
+    fn set_sss_stage(&mut self, stage: SssStage) {
+        if let Some(p) = self.pending_load.as_mut() {
+            p.stage = stage;
+        }
+    }
+
+    fn advance_sss_load(&mut self, now: u64) {
+        let Some(stage) = self.pending_load.as_ref().map(|p| p.stage) else {
+            return;
+        };
+        match stage {
+            SssStage::Launch(idx) => {
+                if self.bus.ram[KBD_BUF_FLAG] == 0 {
+                    self.feed_key(SSS_LAUNCH_KEYS[idx]);
+                    let next = idx + 1;
+                    self.set_sss_stage(if next < SSS_LAUNCH_KEYS.len() {
+                        SssStage::Launch(next)
+                    } else {
+                        SssStage::AwaitMemPrompt(now)
+                    });
+                }
+            }
+            SssStage::AwaitMemPrompt(launched_at) => {
+                if now >= launched_at + BASIC_START_DELAY_CYCLES {
+                    self.set_sss_stage(SssStage::AnswerMem);
+                }
+            }
+            SssStage::AnswerMem => {
+                if self.bus.ram[KBD_BUF_FLAG] == 0 {
+                    self.feed_key(KEY_RETURN);
+                    self.set_sss_stage(SssStage::AwaitMemConsumed);
+                }
+            }
+            SssStage::AwaitMemConsumed => {
+                if self.bus.ram[KBD_BUF_FLAG] == 0 {
+                    let last = self.screen_checksum();
+                    self.set_sss_stage(SssStage::AwaitInit {
+                        last,
+                        stable: 0,
+                        changed: false,
+                    });
+                }
+            }
+            SssStage::AwaitInit {
+                last,
+                stable,
+                changed,
+            } => {
+                let now_sum = self.screen_checksum();
+                if now_sum != last {
+                    self.set_sss_stage(SssStage::AwaitInit {
+                        last: now_sum,
+                        stable: 0,
+                        changed: true,
+                    });
+                } else if changed && stable + 1 >= SCREEN_STABLE_FRAMES {
+                    let prep = self
+                        .pending_load
+                        .as_mut()
+                        .map(|p| (std::mem::take(&mut p.data), p.autorun));
+                    if let Some((data, autorun)) = prep {
+                        let _ = self.load_sss(&data);
+                        if autorun {
+                            self.set_sss_stage(SssStage::Autorun(0));
+                        } else {
+                            self.pending_load = None;
+                        }
+                    }
+                } else {
+                    self.set_sss_stage(SssStage::AwaitInit {
+                        last,
+                        stable: stable + 1,
+                        changed,
+                    });
+                }
+            }
+            SssStage::Autorun(idx) => {
+                if self.bus.ram[KBD_BUF_FLAG] == 0 {
+                    self.feed_key(SSS_RUN_KEYS[idx]);
+                    let next = idx + 1;
+                    if next < SSS_RUN_KEYS.len() {
+                        self.set_sss_stage(SssStage::Autorun(next));
+                    } else {
+                        self.pending_load = None;
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn load_sss(&mut self, payload: &[u8]) -> Result<(), MachineError> {
+        let (len_off, data_off) = if payload.len() >= 13
+            && payload[0] == payload[1]
+            && payload[1] == payload[2]
+            && (0xD3..=0xD8).contains(&payload[0])
+        {
+            (11usize, 13usize)
+        } else {
+            (0usize, 2usize)
+        };
+        if payload.len() < data_off {
+            return Err(MachineError::FileTooShort);
+        }
+        let len = u16::from_le_bytes([payload[len_off], payload[len_off + 1]]) as usize;
+        let prog = &payload[data_off..];
+        let n = len.min(prog.len());
+        let beg = self.basic_beg_addr();
+        for (i, &byte) in prog[..n].iter().enumerate() {
+            self.bus.write_memory(beg.wrapping_add(i as u16), byte);
+        }
+        let top = beg.wrapping_add(n as u16);
+        for off in [42u16, 40, 38] {
+            let addr = beg.wrapping_sub(off);
+            self.bus.write_memory(addr, (top & 0xFF) as u8);
+            self.bus
+                .write_memory(addr.wrapping_add(1), (top >> 8) as u8);
+        }
+        Ok(())
+    }
+
     #[inline(always)]
     pub fn key_down(&mut self, key: i32) {
         self.bus.keyboard.key_down(key);
@@ -355,13 +531,19 @@ impl Machine {
         let mut frame_cycles = 0;
 
         let now = self.total_cycles;
-        if self
+        if let Some((true, format)) = self
             .pending_load
             .as_ref()
-            .is_some_and(|p| now >= p.at_cycle)
-            && let Some(pending) = self.pending_load.take()
+            .map(|p| (now >= p.at_cycle, p.format))
         {
-            let _ = self.load_quick(&pending.data, pending.autorun);
+            match format {
+                LoadFormat::Auto => {
+                    if let Some(pending) = self.pending_load.take() {
+                        let _ = self.load_quick(&pending.data, pending.autorun);
+                    }
+                }
+                LoadFormat::Sss => self.advance_sss_load(now),
+            }
         }
 
         while !vblank_occurred && frame_cycles < MAX_FRAME_CYCLES {

@@ -19,11 +19,15 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use u880::pins;
 
+use crate::core::chips::rtc7242x::Rtc7242x;
 use crate::core::chips::u855::{self, U855};
 use crate::core::chips::u857::{self, U857};
-use crate::core::machine::{GraphicsModule, Hardware, MachineType, RamSize};
+use crate::core::machine::{GraphicsModule, Hardware, MASTER_CLOCK_HZ, MachineType, RamSize};
 use crate::core::peripherals::UserPeripheral;
 use crate::core::peripherals::keyboard::Keyboard;
+
+const CURSOR_BLINK_INTERVAL_MS: u32 = 200;
+const BLINK_TOGGLE_CYCLES: u32 = MASTER_CLOCK_HZ * CURSOR_BLINK_INTERVAL_MS / 1000;
 
 fn serialize_ram_hash<S: serde::Serializer>(
     ram: &[u8; 65536],
@@ -54,6 +58,22 @@ fn serialize_ram_pixel_hash<S: serde::Serializer>(
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
     let hash = Sha256::digest(ram_pixel);
+    serializer.serialize_str(&hex::encode(hash))
+}
+
+fn serialize_ram_video2_hash<S: serde::Serializer>(
+    ram_video2: &[u8; 0x400],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let hash = Sha256::digest(ram_video2);
+    serializer.serialize_str(&hex::encode(hash))
+}
+
+fn serialize_ram_color2_hash<S: serde::Serializer>(
+    ram_color2: &[u8; 0x400],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let hash = Sha256::digest(ram_color2);
     serializer.serialize_str(&hex::encode(hash))
 }
 
@@ -160,6 +180,9 @@ pub struct Bus {
     pub pio2: U855,
     pub ctc: U857,
 
+    #[serde(skip)]
+    pub rtc: Option<Rtc7242x>,
+
     pub keyboard: Keyboard,
 
     pub user_slot: UserPeripheral,
@@ -204,6 +227,21 @@ pub struct Bus {
     pub graph_border: bool,
     pub graph_bank: u8,
     pub graph_addr_l: u8,
+
+    #[serde(skip)]
+    pub c80_enabled: bool,
+    #[serde(
+        serialize_with = "serialize_ram_video2_hash",
+        rename = "ram_video2_hash"
+    )]
+    pub ram_video2: Box<[u8; 0x400]>,
+    #[serde(
+        serialize_with = "serialize_ram_color2_hash",
+        rename = "ram_color2_hash"
+    )]
+    pub ram_color2: Box<[u8; 0x400]>,
+    pub c80_active: bool,
+    pub c80_memswap: bool,
 
     #[serde(skip)]
     pub current_cycle: u64,
@@ -301,6 +339,7 @@ impl Bus {
         let has_overlays = hardware.chargen
             || ram64k_module
             || rom_module.is_some()
+            || hardware.c80
             || hardware.graphics != GraphicsModule::None;
 
         if machine_type == MachineType::Z9001 {
@@ -332,6 +371,11 @@ impl Bus {
             pio1: U855::new(),
             pio2: U855::new(),
             ctc: U857::new(),
+            rtc: if hardware.rtc {
+                Some(Rtc7242x::new())
+            } else {
+                None
+            },
             keyboard,
             user_slot: UserPeripheral::None,
             blink_flip_flop: 0,
@@ -358,6 +402,11 @@ impl Bus {
             graph_border: false,
             graph_bank: 0,
             graph_addr_l: 0,
+            c80_enabled: hardware.c80,
+            ram_video2: vec![0u8; 0x400].into_boxed_slice().try_into().unwrap(),
+            ram_color2: vec![0u8; 0x400].into_boxed_slice().try_into().unwrap(),
+            c80_active: false,
+            c80_memswap: false,
             current_cycle: 0,
             prev_user_write: false,
         }
@@ -400,6 +449,14 @@ impl Bus {
             {
                 return self.ram_pixel
                     [(self.graph_bank as usize) * 0x400 + (addr - 0xEC00) as usize];
+            }
+            if self.c80_enabled && self.c80_memswap {
+                if (0xE800..0xEC00).contains(&addr) {
+                    return self.ram_color2[(addr - 0xE800) as usize];
+                }
+                if (0xEC00..0xF000).contains(&addr) {
+                    return self.ram_video2[(addr - 0xEC00) as usize];
+                }
             }
             if self.ram64k_module {
                 if self.ram_4000_seg1 && (0x4000..0x8000).contains(&addr) {
@@ -466,6 +523,16 @@ impl Bus {
                     data;
                 return;
             }
+            if self.c80_enabled && self.c80_memswap {
+                if (0xE800..0xEC00).contains(&addr) {
+                    self.ram_color2[(addr - 0xE800) as usize] = data;
+                    return;
+                }
+                if (0xEC00..0xF000).contains(&addr) {
+                    self.ram_video2[(addr - 0xEC00) as usize] = data;
+                    return;
+                }
+            }
         }
         let page = &self.mem.page_table[(addr >> 10) as usize];
         let offset = (addr & 1023) as usize;
@@ -527,6 +594,16 @@ impl Bus {
             }
         }
 
+        if self.c80_enabled && (pins & (pins::IORQ | pins::M1 | pins::RD)) == pins::IORQ {
+            match (pins::addr(pins) & 0xFF) as u8 {
+                0xA0 | 0xBE => self.c80_memswap = false,
+                0xA1 | 0xBF => self.c80_memswap = true,
+                0xA8 | 0xBC => self.c80_active = false,
+                0xA9 | 0xBD => self.c80_active = true,
+                _ => {}
+            }
+        }
+
         pins = self.pio1.tick(pins);
         self.sys_porta = self.pio1.output_a();
         pins &= pins::PIN_MASK;
@@ -571,6 +648,18 @@ impl Bus {
         let beeper_toggled = (pins & u857::ZCTO0) != 0;
         self.ctc_zcto2 = pins & u857::ZCTO2;
         pins &= pins::PIN_MASK;
+
+        if let Some(rtc) = &mut self.rtc
+            && (pins & (pins::IORQ | pins::M1)) == pins::IORQ
+            && (pins::addr(pins) & 0xF0) == 0x60
+        {
+            let reg = (pins::addr(pins) & 0x0F) as u8;
+            if (pins & pins::RD) != 0 {
+                pins = pins::set_data(pins, rtc.read(reg));
+            } else {
+                rtc.write(reg, pins::data(pins));
+            }
+        }
 
         if self.graph_type != GraphicsModule::None && (pins & (pins::IORQ | pins::M1)) == pins::IORQ
         {
@@ -628,7 +717,7 @@ impl Bus {
         let old_blink = self.blink_counter;
         self.blink_counter = self.blink_counter.wrapping_sub(1);
         if old_blink == 0 {
-            self.blink_counter = (2_457_600 * 8) / 25;
+            self.blink_counter = BLINK_TOGGLE_CYCLES;
             self.blink_flip_flop ^= 0x80;
         }
 

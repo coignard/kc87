@@ -28,7 +28,7 @@ use crate::app::audio::AudioSystem;
 use crate::app::keyboard::KeyboardLayout;
 use crate::app::{App, AppConfig, MachineConfig};
 use kc87::core::debug::{ReplayMetadata, ReplayPlayer, ReplayRecorder};
-use kc87::core::machine::{GraphicsModule, Hardware, MachineType, RamSize};
+use kc87::core::machine::{GraphicsModule, Hardware, LoadFormat, MachineType, RamSize};
 use kc87::core::video::VideoRenderer;
 
 const KC87_OS_ROM: &[u8] = include_bytes!("../firmware/kc87/os.rom");
@@ -163,6 +163,15 @@ struct Args {
     #[arg(long, value_name = "file", help_heading = "General options")]
     tap: Option<String>,
 
+    /// Path to a KC-BASIC program (.sss) to load
+    #[arg(
+        long,
+        value_name = "file",
+        conflicts_with_all = ["kcc", "tap"],
+        help_heading = "General options"
+    )]
+    sss: Option<String>,
+
     /// Path to a ROM module image (.rom) to map at C000h
     #[arg(long, value_name = "file", help_heading = "General options")]
     rom: Option<String>,
@@ -183,6 +192,14 @@ struct Args {
     /// Enable the programmable character generator
     #[arg(long, help_heading = "Extension options")]
     pzg: bool,
+
+    /// Enable the 80-character display mode
+    #[arg(long = "80col", help_heading = "Extension options")]
+    col80: bool,
+
+    /// Enable the real-time clock
+    #[arg(long, help_heading = "Extension options")]
+    rtc: bool,
 
     /// Full-graphics expansion
     /// Possible values: robotron, krt
@@ -291,6 +308,8 @@ fn main() -> Result<()> {
         ram: args.ram.map(RamSize::from).unwrap_or_default(),
         chargen: args.pzg,
         graphics: args.graphics.map(GraphicsModule::from).unwrap_or_default(),
+        c80: args.col80,
+        rtc: args.rtc,
     };
 
     if matches!(hardware.graphics, GraphicsModule::Robotron)
@@ -337,29 +356,49 @@ fn main() -> Result<()> {
         }
     };
 
-    let explicit_program = args.kcc.clone().or_else(|| args.tap.clone());
-    let (program_path, rom_path) = match &args.file {
+    let explicit_program: Option<(String, LoadFormat)> = args
+        .kcc
+        .clone()
+        .map(|p| (p, LoadFormat::Auto))
+        .or_else(|| args.tap.clone().map(|p| (p, LoadFormat::Auto)))
+        .or_else(|| args.sss.clone().map(|p| (p, LoadFormat::Sss)));
+    let (program_path, program_format, rom_path) = match &args.file {
         Some(file) => {
             let ext = std::path::Path::new(file)
                 .extension()
                 .and_then(|e| e.to_str())
                 .map(|e| e.to_lowercase());
             match ext.as_deref() {
-                Some("kcc") | Some("tap") => (
-                    explicit_program.or_else(|| Some(file.clone())),
-                    args.rom.clone(),
-                ),
-                Some("rom") => (
-                    explicit_program,
-                    args.rom.clone().or_else(|| Some(file.clone())),
-                ),
+                Some("kcc") | Some("tap") => match explicit_program {
+                    Some((p, fmt)) => (Some(p), fmt, args.rom.clone()),
+                    None => (Some(file.clone()), LoadFormat::Auto, args.rom.clone()),
+                },
+                Some("sss") => match explicit_program {
+                    Some((p, fmt)) => (Some(p), fmt, args.rom.clone()),
+                    None => (Some(file.clone()), LoadFormat::Sss, args.rom.clone()),
+                },
+                Some("rom") => match explicit_program {
+                    Some((p, fmt)) => (
+                        Some(p),
+                        fmt,
+                        args.rom.clone().or_else(|| Some(file.clone())),
+                    ),
+                    None => (
+                        None,
+                        LoadFormat::Auto,
+                        args.rom.clone().or_else(|| Some(file.clone())),
+                    ),
+                },
                 _ => anyhow::bail!(
-                    "unsupported file extension for '{}': only .kcc, .tap and .rom are allowed",
+                    "unsupported file extension for '{}': only .kcc, .tap, .sss and .rom are allowed",
                     file
                 ),
             }
         }
-        None => (explicit_program, args.rom.clone()),
+        None => match explicit_program {
+            Some((p, fmt)) => (Some(p), fmt, args.rom.clone()),
+            None => (None, LoadFormat::Auto, args.rom.clone()),
+        },
     };
 
     let (payload, program, program_sha256, program_name) = if let Some(path) = &program_path {
@@ -409,7 +448,7 @@ fn main() -> Result<()> {
     let event_loop = EventLoop::new().context("Failed to create winit event loop")?;
 
     let audio = AudioSystem::new().context("Failed to initialize audio system")?;
-    let video = VideoRenderer::new(font_rom);
+    let video = VideoRenderer::new(font_rom, hardware.c80);
 
     let sample_rate = player
         .as_ref()
@@ -466,6 +505,7 @@ fn main() -> Result<()> {
         os_rom_2,
         sample_rate,
         payload,
+        payload_format: program_format,
         autorun,
         program_name,
         midi_enabled,
@@ -481,6 +521,9 @@ fn main() -> Result<()> {
             ram: hardware.ram,
             chargen: hardware.chargen,
             graphics: hardware.graphics,
+            c80: hardware.c80,
+            rtc: hardware.rtc,
+            payload_format: program_format,
             rom_module: rom_module_name,
             rom_module_sha256,
         })

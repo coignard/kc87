@@ -72,6 +72,8 @@ fn run_replay(replay_path_str: &str) {
         ram: player.replay.metadata.ram,
         chargen: player.replay.metadata.chargen,
         graphics: player.replay.metadata.graphics,
+        c80: player.replay.metadata.c80,
+        rtc: player.replay.metadata.rtc,
     };
 
     let (basic_rom, os_rom_1, os_rom_2, font_rom, os_rom_hash) = match machine_type {
@@ -119,7 +121,7 @@ fn run_replay(replay_path_str: &str) {
         os_rom_2,
         sample_rate,
     );
-    let mut video = VideoRenderer::new(font_rom);
+    let mut video = VideoRenderer::new(font_rom, hardware.c80);
 
     if base_name == BOOT_SENTINEL {
         assert_eq!(
@@ -141,7 +143,7 @@ fn run_replay(replay_path_str: &str) {
             base_name
         );
 
-        machine.schedule_load(program_data, autorun);
+        machine.schedule_load(program_data, player.replay.metadata.payload_format, autorun);
     }
 
     let update_snapshots = std::env::var("UPDATE_SNAPSHOTS").is_ok();

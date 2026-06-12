@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufWriter;
 
-use crate::core::machine::{GraphicsModule, Machine, MachineType, RamSize};
+use crate::core::machine::{GraphicsModule, LoadFormat, Machine, MachineType, RamSize};
 
 #[derive(Serialize, Deserialize)]
 pub struct ReplayMetadata {
@@ -35,6 +35,12 @@ pub struct ReplayMetadata {
     pub chargen: bool,
     #[serde(default)]
     pub graphics: GraphicsModule,
+    #[serde(default)]
+    pub c80: bool,
+    #[serde(default)]
+    pub rtc: bool,
+    #[serde(default)]
+    pub payload_format: LoadFormat,
     #[serde(default)]
     pub rom_module: Option<String>,
     #[serde(default)]
