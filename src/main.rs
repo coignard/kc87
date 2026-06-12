@@ -19,7 +19,7 @@ mod app;
 
 use std::fs;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use clap::{CommandFactory, FromArgMatches, Parser, ValueEnum};
 use sha2::{Digest, Sha256};
 use winit::event_loop::EventLoop;
@@ -39,6 +39,39 @@ const Z9001_OS_1: &[u8] = include_bytes!("../firmware/z9001/os_1.rom");
 const Z9001_OS_2: &[u8] = include_bytes!("../firmware/z9001/os_2.rom");
 const Z9001_BASIC_ROM: &[u8] = include_bytes!("../firmware/z9001/basic.rom");
 const Z9001_CHARGEN_ROM: &[u8] = include_bytes!("../firmware/z9001/chargen.rom");
+
+const KC87_OS_ROM_HASH: &str = include_str!("../firmware/kc87/os.rom.sha256").trim_ascii();
+const KC87_BASIC_ROM_HASH: &str = include_str!("../firmware/kc87/basic.rom.sha256").trim_ascii();
+const KC87_CHARGEN_ROM_HASH: &str = include_str!("../firmware/kc87/chargen.rom.sha256").trim_ascii();
+
+const Z9001_OS_1_HASH: &str = include_str!("../firmware/z9001/os_1.rom.sha256").trim_ascii();
+const Z9001_OS_2_HASH: &str = include_str!("../firmware/z9001/os_2.rom.sha256").trim_ascii();
+const Z9001_BASIC_ROM_HASH: &str = include_str!("../firmware/z9001/basic.rom.sha256").trim_ascii();
+const Z9001_CHARGEN_ROM_HASH: &str = include_str!("../firmware/z9001/chargen.rom.sha256").trim_ascii();
+
+fn check_integrity() -> Result<()> {
+    let verify = |name: &str, data: &[u8], expected: &str| -> Result<()> {
+        let hash = Sha256::digest(data);
+        let actual = hex::encode(hash);
+        ensure!(
+            actual == expected,
+            "integrity check failed for asset '{}'",
+            name
+        );
+        Ok(())
+    };
+
+    verify("kc87/os.rom", KC87_OS_ROM, KC87_OS_ROM_HASH)?;
+    verify("kc87/basic.rom", KC87_BASIC_ROM, KC87_BASIC_ROM_HASH)?;
+    verify("kc87/chargen.rom", KC87_CHARGEN_ROM, KC87_CHARGEN_ROM_HASH)?;
+
+    verify("z9001/os_1.rom", Z9001_OS_1, Z9001_OS_1_HASH)?;
+    verify("z9001/os_2.rom", Z9001_OS_2, Z9001_OS_2_HASH)?;
+    verify("z9001/basic.rom", Z9001_BASIC_ROM, Z9001_BASIC_ROM_HASH)?;
+    verify("z9001/chargen.rom", Z9001_CHARGEN_ROM, Z9001_CHARGEN_ROM_HASH)?;
+
+    Ok(())
+}
 
 fn midi_client_name(machine_type: MachineType) -> &'static str {
     match machine_type {
@@ -289,6 +322,8 @@ struct Args {
 }
 
 fn main() -> Result<()> {
+    check_integrity()?;
+
     let mut cmd = Args::command();
 
     if !std::env::args_os().any(|arg| arg == "--debug") {
