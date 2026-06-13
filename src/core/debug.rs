@@ -21,6 +21,7 @@ use std::fs::File;
 use std::io::BufWriter;
 
 use crate::core::machine::{GraphicsModule, LoadFormat, Machine, MachineType, RamSize};
+use crate::core::peripherals::keyboard::Key;
 
 #[derive(Serialize, Deserialize)]
 pub struct ReplayMetadata {
@@ -49,8 +50,8 @@ pub struct ReplayMetadata {
 
 #[derive(Serialize, Deserialize)]
 pub enum ReplayAction {
-    KeyDown { key: i32 },
-    KeyUp { key: i32 },
+    KeyDown { key: Key },
+    KeyUp { key: Key },
     TakeSnapshot { name: String },
 }
 
@@ -81,7 +82,7 @@ impl ReplayRecorder {
         }
     }
 
-    pub fn push_key(&mut self, cycle: u64, key: i32, pressed: bool) {
+    pub fn push_key(&mut self, cycle: u64, key: Key, pressed: bool) {
         let action = if pressed {
             ReplayAction::KeyDown { key }
         } else {
