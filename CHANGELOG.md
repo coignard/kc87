@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3
+
+### Changes
+- Bumped cpal from 0.17.3 to 0.18.1
+
 ## 0.2.2
 
 ### Changed
