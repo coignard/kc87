@@ -1,0 +1,451 @@
+{
+  "metadata": {
+    "program": "ramtest.tap",
+    "program_sha256": "5afd319f4ff547d95300182583ddc141364ce99565a7b02d9080518fd1e4afa3",
+    "autorun": true,
+    "sample_rate": 48000,
+    "machine_type": "Z9001",
+    "ram": "Default",
+    "chargen": false,
+    "graphics": "None",
+    "c80": false,
+    "rtc": false,
+    "payload_format": "auto",
+    "rom_module": null,
+    "rom_module_sha256": null
+  },
+  "events": [
+    {
+      "frame": 540672,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ramtest_frame_540672"
+        }
+      }
+    },
+    {
+      "frame": 3096576,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ramtest_frame_3096576"
+        }
+      }
+    },
+    {
+      "frame": 6144000,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ramtest_frame_6144000"
+        }
+      }
+    },
+    {
+      "frame": 6242304,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ramtest_frame_6242304"
+        }
+      }
+    },
+    {
+      "frame": 7421952,
+      "action": {
+        "KeyDown": {
+          "key": "Num4"
+        }
+      }
+    },
+    {
+      "frame": 7618560,
+      "action": {
+        "KeyUp": {
+          "key": "Num4"
+        }
+      }
+    },
+    {
+      "frame": 7815168,
+      "action": {
+        "KeyDown": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 7962624,
+      "action": {
+        "KeyUp": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 8208384,
+      "action": {
+        "KeyDown": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 8355840,
+      "action": {
+        "KeyUp": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 8552448,
+      "action": {
+        "KeyDown": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 8749056,
+      "action": {
+        "KeyUp": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 9781248,
+      "action": {
+        "KeyDown": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 10027008,
+      "action": {
+        "KeyUp": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 10665984,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 10862592,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 12681216,
+      "action": {
+        "KeyDown": {
+          "key": "Num7"
+        }
+      }
+    },
+    {
+      "frame": 12828672,
+      "action": {
+        "KeyUp": {
+          "key": "Num7"
+        }
+      }
+    },
+    {
+      "frame": 13565952,
+      "action": {
+        "KeyDown": {
+          "key": "F"
+        }
+      }
+    },
+    {
+      "frame": 13713408,
+      "action": {
+        "KeyUp": {
+          "key": "F"
+        }
+      }
+    },
+    {
+      "frame": 14057472,
+      "action": {
+        "KeyDown": {
+          "key": "F"
+        }
+      }
+    },
+    {
+      "frame": 14254080,
+      "action": {
+        "KeyUp": {
+          "key": "F"
+        }
+      }
+    },
+    {
+      "frame": 14991360,
+      "action": {
+        "KeyDown": {
+          "key": "F"
+        }
+      }
+    },
+    {
+      "frame": 15187968,
+      "action": {
+        "KeyUp": {
+          "key": "F"
+        }
+      }
+    },
+    {
+      "frame": 15679488,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 15974400,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 17301504,
+      "action": {
+        "KeyDown": {
+          "key": "Num4"
+        }
+      }
+    },
+    {
+      "frame": 17596416,
+      "action": {
+        "KeyUp": {
+          "key": "Num4"
+        }
+      }
+    },
+    {
+      "frame": 18137088,
+      "action": {
+        "KeyDown": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 18333696,
+      "action": {
+        "KeyUp": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 18726912,
+      "action": {
+        "KeyDown": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 18923520,
+      "action": {
+        "KeyUp": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 21970944,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 22167552,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 22757376,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ramtest_frame_22757376"
+        }
+      }
+    },
+    {
+      "frame": 23937024,
+      "action": {
+        "KeyDown": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 24084480,
+      "action": {
+        "KeyUp": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 24870912,
+      "action": {
+        "KeyDown": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 25018368,
+      "action": {
+        "KeyUp": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 25411584,
+      "action": {
+        "KeyDown": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 25608192,
+      "action": {
+        "KeyUp": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 25952256,
+      "action": {
+        "KeyDown": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 26198016,
+      "action": {
+        "KeyUp": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 26935296,
+      "action": {
+        "KeyDown": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 27131904,
+      "action": {
+        "KeyUp": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 28065792,
+      "action": {
+        "KeyDown": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 28213248,
+      "action": {
+        "KeyUp": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 30916608,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ramtest_frame_30916608"
+        }
+      }
+    },
+    {
+      "frame": 33570816,
+      "action": {
+        "KeyDown": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 33767424,
+      "action": {
+        "KeyUp": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 36421632,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ramtest_frame_36421632"
+        }
+      }
+    },
+    {
+      "frame": 1390903296,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ramtest_frame_1390903296"
+        }
+      }
+    },
+    {
+      "frame": 1397047296,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ramtest_frame_1397047296"
+        }
+      }
+    },
+    {
+      "frame": 1405845504,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ramtest_frame_1405845504"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "program": "ftest13.tap",
+    "program_sha256": "3bde06f4099c31b4882771e89e2e0025e83cab110fd274374c627f2b19fd0b61",
+    "autorun": true,
+    "sample_rate": 48000,
+    "machine_type": "KC87",
+    "ram": "Default",
+    "chargen": false,
+    "graphics": "None",
+    "c80": false,
+    "rtc": false,
+    "payload_format": "auto",
+    "rom_module": null,
+    "rom_module_sha256": null
+  },
+  "events": [
+    {
+      "frame": 5013504,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ftest13_frame_5013504"
+        }
+      }
+    },
+    {
+      "frame": 5357568,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ftest13_frame_5357568"
+        }
+      }
+    },
+    {
+      "frame": 5406720,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ftest13_frame_5406720"
+        }
+      }
+    },
+    {
+      "frame": 407912448,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ftest13_frame_407912448"
+        }
+      }
+    },
+    {
+      "frame": 428457984,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ftest13_frame_428457984"
+        }
+      }
+    },
+    {
+      "frame": 432291840,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ftest13_frame_432291840"
+        }
+      }
+    },
+    {
+      "frame": 432340992,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ftest13_frame_432340992"
+        }
+      }
+    },
+    {
+      "frame": 1346568192,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ftest13_frame_1346568192"
+        }
+      }
+    },
+    {
+      "frame": 1346617344,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ftest13_frame_1346617344"
+        }
+      }
+    },
+    {
+      "frame": 1346764800,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ftest13_frame_1346764800"
+        }
+      }
+    },
+    {
+      "frame": 1346813952,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ftest13_frame_1346813952"
+        }
+      }
+    },
+    {
+      "frame": 1346863104,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ftest13_frame_1346863104"
+        }
+      }
+    }
+  ]
+}
