@@ -1,0 +1,99 @@
+{
+  "metadata": {
+    "program": "musik.tap",
+    "program_sha256": "b45209c651a996ee0d5a0b4404eb4a2382e0f12cf11815d4c82c306a4e04511c",
+    "autorun": true,
+    "sample_rate": 48000,
+    "machine_type": "KC87",
+    "ram": "Default",
+    "chargen": false,
+    "graphics": "None",
+    "c80": false,
+    "rtc": false,
+    "payload_format": "auto",
+    "rom_module": null,
+    "rom_module_sha256": null
+  },
+  "events": [
+    {
+      "frame": 5455872,
+      "action": {
+        "TakeSnapshot": {
+          "name": "musik_frame_5455872"
+        }
+      }
+    },
+    {
+      "frame": 5849088,
+      "action": {
+        "TakeSnapshot": {
+          "name": "musik_frame_5849088"
+        }
+      }
+    },
+    {
+      "frame": 8601600,
+      "action": {
+        "KeyDown": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 8798208,
+      "action": {
+        "KeyUp": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 10076160,
+      "action": {
+        "TakeSnapshot": {
+          "name": "musik_frame_10076160"
+        }
+      }
+    },
+    {
+      "frame": 12582912,
+      "action": {
+        "KeyDown": {
+          "key": "Num2"
+        }
+      }
+    },
+    {
+      "frame": 12779520,
+      "action": {
+        "KeyUp": {
+          "key": "Num2"
+        }
+      }
+    },
+    {
+      "frame": 14794752,
+      "action": {
+        "TakeSnapshot": {
+          "name": "musik_frame_14794752"
+        }
+      }
+    },
+    {
+      "frame": 42221568,
+      "action": {
+        "TakeSnapshot": {
+          "name": "musik_frame_42221568"
+        }
+      }
+    },
+    {
+      "frame": 243843072,
+      "action": {
+        "TakeSnapshot": {
+          "name": "musik_frame_243843072"
+        }
+      }
+    }
+  ]
+}
