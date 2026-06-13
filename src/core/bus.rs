@@ -28,6 +28,88 @@ use crate::core::peripherals::keyboard::Keyboard;
 
 const CURSOR_BLINK_INTERVAL_MS: u32 = 200;
 const BLINK_TOGGLE_CYCLES: u32 = MASTER_CLOCK_HZ * CURSOR_BLINK_INTERVAL_MS / 1000;
+const BLINK_FLIP_FLOP_BIT: u8 = 0x80;
+
+pub mod memory_map {
+    pub const RAM_START: u16 = 0x0000;
+    pub const RAM_EXT_SEG1_START: u16 = 0x4000;
+    pub const RAM_EXT_SEG1_END: u16 = 0x8000;
+    pub const UPPER_RAM_START: u16 = 0xC000;
+    pub const COLOR_RAM_START: u16 = 0xE800;
+    pub const COLOR_RAM_END: u16 = 0xEC00;
+    pub const VIDEO_RAM_START: u16 = 0xEC00;
+    pub const VIDEO_RAM_END: u16 = 0xF000;
+    pub const VIDEO_RAM_SIZE: usize = 0x0400;
+    pub const CHARGEN_WINDOW_ON: u16 = 0xEBFC;
+    pub const CHARGEN_FONT_ON: u16 = 0xEBFE;
+    pub const CHARGEN_OFF: u16 = 0xEBFF;
+}
+
+mod ports {
+    pub const RAM64K_SEG1_OFF: u8 = 0x04;
+    pub const RAM64K_SEG1_ON: u8 = 0x05;
+    pub const RAM64K_C000_OFF: u8 = 0x06;
+    pub const RAM64K_C000_ON: u8 = 0x07;
+    pub const RTC_BASE: u8 = 0x60;
+    pub const RTC_BASE_MASK: u8 = 0xF0;
+    pub const RTC_REG_MASK: u8 = 0x0F;
+    pub const C80_SWAP_OFF: u8 = 0xA0;
+    pub const C80_SWAP_ON: u8 = 0xA1;
+    pub const C80_WIDE_OFF: u8 = 0xA8;
+    pub const C80_WIDE_ON: u8 = 0xA9;
+    pub const C80_WIDE_OFF_ALT: u8 = 0xBC;
+    pub const C80_WIDE_ON_ALT: u8 = 0xBD;
+    pub const C80_SWAP_OFF_ALT: u8 = 0xBE;
+    pub const C80_SWAP_ON_ALT: u8 = 0xBF;
+    pub const GRAPH_CONTROL: u8 = 0xB8;
+    pub const GRAPH_ADDR_LOW: u8 = 0xB9;
+    pub const GRAPH_PIXEL: u8 = 0xBA;
+}
+
+const RAM_LAYER: usize = 0;
+const ROM_LAYER: usize = 1;
+const RAM_BASE: usize = 0;
+
+mod firmware {
+    pub const BASIC_SRC: usize = 0x0000;
+    pub const BASIC_DEST: u16 = 0xC000;
+    pub const Z9001_BASIC_SIZE: u32 = 0x2800;
+    pub const Z9001_OS_BANK_SIZE: u32 = 0x0800;
+    pub const Z9001_OS1_DEST: u16 = 0xF000;
+    pub const Z9001_OS1_SRC: usize = 0x3000;
+    pub const Z9001_OS2_DEST: u16 = 0xF800;
+    pub const Z9001_OS2_SRC: usize = 0x3800;
+    pub const KC87_ROM_BANK_SIZE: u32 = 0x2000;
+    pub const KC87_OS_DEST: u16 = 0xE000;
+    pub const KC87_OS_SRC: usize = 0x2000;
+}
+
+const PORT_ADDR_MASK: u16 = 0x00FF;
+const PAGE_SIZE: usize = 1024;
+const PAGE_SHIFT: u16 = 10;
+const PAGE_OFFSET_MASK: u16 = 0x03FF;
+const NUM_PAGES: usize = 64;
+const MEM_LAYERS: usize = 4;
+const ADDR_WRAP_MASK: usize = 0xFFFF;
+const OPEN_BUS_VALUE: u8 = 0xFF;
+
+const COLOR_INDEX_MASK: u8 = 0x07;
+const COLOR_NIBBLE_SHIFT: u8 = 4;
+const SYS_PORTA_AUDIO_BIT: u8 = 0x80;
+const SYS_PORTA_MODE20_BIT: u8 = 0x04;
+const SYS_PORTA_BORDER_SHIFT: u8 = 3;
+const GRAPH_MODE_BIT: u8 = 0x08;
+const GRAPH_BORDER_WRITE_BIT: u8 = 0x80;
+const GRAPH_BORDER_READ_BIT: u8 = 0x40;
+
+const PIO_PORT_A_SHIFT: u64 = 48;
+const PIO_PORT_B_SHIFT: u64 = 56;
+
+const KBD_STICKY_FRAMES: u32 = 3;
+
+const RAM_TOP_16K: u32 = 0x4000;
+const RAM_TOP_32K: u32 = 0x8000;
+const RAM_TOP_48K: u32 = 0xC000;
 
 fn serialize_ram_hash<S: serde::Serializer>(
     ram: &[u8; 65536],
@@ -100,8 +182,8 @@ impl Default for MemPage {
 }
 
 pub struct Mem {
-    pub page_table: [MemPage; 64],
-    pub layers: [[MemPage; 64]; 4],
+    pub page_table: [MemPage; NUM_PAGES],
+    pub layers: [[MemPage; NUM_PAGES]; MEM_LAYERS],
 }
 
 impl Default for Mem {
@@ -113,13 +195,13 @@ impl Default for Mem {
 impl Mem {
     pub fn new() -> Self {
         Self {
-            page_table: [MemPage::default(); 64],
-            layers: [[MemPage::default(); 64]; 4],
+            page_table: [MemPage::default(); NUM_PAGES],
+            layers: [[MemPage::default(); NUM_PAGES]; MEM_LAYERS],
         }
     }
 
     pub fn update_page_table(&mut self, page_index: usize) {
-        for layer in 0..4 {
+        for layer in 0..MEM_LAYERS {
             let p = self.layers[layer][page_index];
             if p.read != PageRef::Unmapped || p.write != PageRef::Unmapped {
                 self.page_table[page_index] = p;
@@ -137,10 +219,10 @@ impl Mem {
         read_base: PageRef,
         write_base: PageRef,
     ) {
-        let num_pages = (size >> 10) as usize;
+        let num_pages = (size >> PAGE_SHIFT) as usize;
         for i in 0..num_pages {
-            let offset = i * 1024;
-            let page_index = (((addr as usize) + offset) & 0xFFFF) >> 10;
+            let offset = i * PAGE_SIZE;
+            let page_index = (((addr as usize) + offset) & ADDR_WRAP_MASK) >> PAGE_SHIFT;
 
             let r = match read_base {
                 PageRef::Ram(b) => PageRef::Ram(b + offset),
@@ -282,58 +364,29 @@ impl Bus {
             rom[at..at + n].copy_from_slice(&src[..n]);
         };
 
-        let mut keyboard = Keyboard::new(3);
-        keyboard.register_modifier(0, 0, 7);
-        let keymap: &[u8] = b"0123456789:;,=.?@ABCDEFGHIJKLMNOPQRSTUVWXYZ   ^                 _!\"#$%&'()*+<->/ abcdefghijklmnopqrstuvwxyz                     ";
-        for shift in 0..2 {
-            for line in 0..8 {
-                for column in 0..8 {
-                    let c = keymap[shift * 64 + line * 8 + column];
-                    if c != b' ' {
-                        keyboard.register_key(
-                            c as i32,
-                            column,
-                            line,
-                            if shift != 0 { 1 } else { 0 },
-                        );
-                    }
-                }
-            }
-        }
-        keyboard.register_key(0x03, 6, 6, 0);
-        keyboard.register_key(0x08, 0, 6, 0);
-        keyboard.register_key(0x09, 1, 6, 0);
-        keyboard.register_key(0x0A, 2, 6, 0);
-        keyboard.register_key(0x0B, 3, 6, 0);
-        keyboard.register_key(0x0D, 5, 6, 0);
-        keyboard.register_key(0x13, 4, 5, 0);
-        keyboard.register_key(0x14, 1, 7, 0);
-        keyboard.register_key(0x19, 3, 5, 0);
-        keyboard.register_key(0x1A, 5, 5, 0);
-        keyboard.register_key(0x1B, 4, 6, 0);
-        keyboard.register_key(0x1C, 4, 7, 0);
-        keyboard.register_key(0x1D, 5, 7, 0);
-        keyboard.register_key(0x20, 7, 6, 0);
+        let mut keyboard = Keyboard::new(KBD_STICKY_FRAMES);
+        keyboard.register_default_layout();
 
         let ram_top: u32 = match hardware.ram {
-            RamSize::K16 => 0x4000,
-            RamSize::K32 => 0x8000,
-            RamSize::K48 | RamSize::K64 => 0xC000,
+            RamSize::K16 => RAM_TOP_16K,
+            RamSize::K32 => RAM_TOP_32K,
+            RamSize::K48 | RamSize::K64 => RAM_TOP_48K,
             RamSize::Default => match machine_type {
-                MachineType::Z9001 => 0x8000,
-                MachineType::KC87 => 0xC000,
+                MachineType::Z9001 => RAM_TOP_32K,
+                MachineType::KC87 => RAM_TOP_48K,
             },
         };
 
         let ram64k_module = hardware.ram == RamSize::K64;
-        let c000_ram_end: u16 = 0xE800;
+        let c000_ram_end: u16 = memory_map::COLOR_RAM_START;
 
         let (rom_module, rom_module_end) = match rom_module {
             Some(bytes) if !bytes.is_empty() => {
-                let end = (0xC000u32 + bytes.len() as u32).min(c000_ram_end as u32) as u16;
+                let end = (memory_map::UPPER_RAM_START as u32 + bytes.len() as u32)
+                    .min(c000_ram_end as u32) as u16;
                 (Some(bytes.into_boxed_slice()), end)
             }
-            _ => (None, 0xC000),
+            _ => (None, memory_map::UPPER_RAM_START),
         };
 
         let has_overlays = hardware.chargen
@@ -344,25 +397,60 @@ impl Bus {
 
         if machine_type == MachineType::Z9001 {
             if !basic_rom.is_empty() {
-                load_rom(&mut rom, 0x0000, &basic_rom);
-                mem.map_rom(1, 0xC000, 0x2800, 0x0000);
+                load_rom(&mut rom, firmware::BASIC_SRC, &basic_rom);
+                mem.map_rom(
+                    ROM_LAYER,
+                    firmware::BASIC_DEST,
+                    firmware::Z9001_BASIC_SIZE,
+                    firmware::BASIC_SRC,
+                );
             }
-            load_rom(&mut rom, 0x3000, &os_rom_1);
-            mem.map_rom(1, 0xF000, 0x0800, 0x3000);
+            load_rom(&mut rom, firmware::Z9001_OS1_SRC, &os_rom_1);
+            mem.map_rom(
+                ROM_LAYER,
+                firmware::Z9001_OS1_DEST,
+                firmware::Z9001_OS_BANK_SIZE,
+                firmware::Z9001_OS1_SRC,
+            );
             if let Some(os_2) = os_rom_2 {
-                load_rom(&mut rom, 0x3800, &os_2);
-                mem.map_rom(1, 0xF800, 0x0800, 0x3800);
+                load_rom(&mut rom, firmware::Z9001_OS2_SRC, &os_2);
+                mem.map_rom(
+                    ROM_LAYER,
+                    firmware::Z9001_OS2_DEST,
+                    firmware::Z9001_OS_BANK_SIZE,
+                    firmware::Z9001_OS2_SRC,
+                );
             }
-            mem.map_ram(0, 0x0000, ram_top, 0x0000);
+            mem.map_ram(RAM_LAYER, memory_map::RAM_START, ram_top, RAM_BASE);
         } else {
-            load_rom(&mut rom, 0x0000, &basic_rom);
-            load_rom(&mut rom, 0x2000, &os_rom_1);
-            mem.map_ram(0, 0x0000, ram_top, 0x0000);
-            mem.map_ram(0, 0xE800, 0x0400, 0xE800);
-            mem.map_rom(1, 0xC000, 0x2000, 0x0000);
-            mem.map_rom(1, 0xE000, 0x2000, 0x2000);
+            load_rom(&mut rom, firmware::BASIC_SRC, &basic_rom);
+            load_rom(&mut rom, firmware::KC87_OS_SRC, &os_rom_1);
+            mem.map_ram(RAM_LAYER, memory_map::RAM_START, ram_top, RAM_BASE);
+            mem.map_ram(
+                RAM_LAYER,
+                memory_map::COLOR_RAM_START,
+                memory_map::VIDEO_RAM_SIZE as u32,
+                memory_map::COLOR_RAM_START as usize,
+            );
+            mem.map_rom(
+                ROM_LAYER,
+                firmware::BASIC_DEST,
+                firmware::KC87_ROM_BANK_SIZE,
+                firmware::BASIC_SRC,
+            );
+            mem.map_rom(
+                ROM_LAYER,
+                firmware::KC87_OS_DEST,
+                firmware::KC87_ROM_BANK_SIZE,
+                firmware::KC87_OS_SRC,
+            );
         }
-        mem.map_ram(0, 0xEC00, 0x0400, 0xEC00);
+        mem.map_ram(
+            RAM_LAYER,
+            memory_map::VIDEO_RAM_START,
+            memory_map::VIDEO_RAM_SIZE as u32,
+            memory_map::VIDEO_RAM_START as usize,
+        );
 
         Self {
             ram,
@@ -414,17 +502,17 @@ impl Bus {
 
     #[inline]
     pub fn audio_enabled(&self) -> bool {
-        (self.sys_porta & 0x80) != 0
+        (self.sys_porta & SYS_PORTA_AUDIO_BIT) != 0
     }
 
     #[inline]
     pub fn border_color(&self) -> u8 {
-        (self.sys_porta >> 3) & 0x07
+        (self.sys_porta >> SYS_PORTA_BORDER_SHIFT) & COLOR_INDEX_MASK
     }
 
     #[inline]
     pub fn mode_20_rows(&self) -> bool {
-        (self.sys_porta & 0x04) != 0
+        (self.sys_porta & SYS_PORTA_MODE20_BIT) != 0
     }
 
     #[inline]
@@ -440,44 +528,51 @@ impl Bus {
     #[inline(always)]
     fn read_memory(&self, addr: u16) -> u8 {
         if self.has_overlays {
-            if self.chargen && self.chargen_window && (0xE800..0xEC00).contains(&addr) {
-                return self.chargen_ram[(addr - 0xE800) as usize];
+            if self.chargen
+                && self.chargen_window
+                && (memory_map::COLOR_RAM_START..memory_map::COLOR_RAM_END).contains(&addr)
+            {
+                return self.chargen_ram[(addr - memory_map::COLOR_RAM_START) as usize];
             }
             if self.graph_type == GraphicsModule::Krt
                 && self.graph_mode
-                && (0xEC00..0xF000).contains(&addr)
+                && (memory_map::VIDEO_RAM_START..memory_map::VIDEO_RAM_END).contains(&addr)
             {
-                return self.ram_pixel
-                    [(self.graph_bank as usize) * 0x400 + (addr - 0xEC00) as usize];
+                return self.ram_pixel[(self.graph_bank as usize) * memory_map::VIDEO_RAM_SIZE
+                    + (addr - memory_map::VIDEO_RAM_START) as usize];
             }
             if self.c80_enabled && self.c80_memswap {
-                if (0xE800..0xEC00).contains(&addr) {
-                    return self.ram_color2[(addr - 0xE800) as usize];
+                if (memory_map::COLOR_RAM_START..memory_map::COLOR_RAM_END).contains(&addr) {
+                    return self.ram_color2[(addr - memory_map::COLOR_RAM_START) as usize];
                 }
-                if (0xEC00..0xF000).contains(&addr) {
-                    return self.ram_video2[(addr - 0xEC00) as usize];
+                if (memory_map::VIDEO_RAM_START..memory_map::VIDEO_RAM_END).contains(&addr) {
+                    return self.ram_video2[(addr - memory_map::VIDEO_RAM_START) as usize];
                 }
             }
             if self.ram64k_module {
-                if self.ram_4000_seg1 && (0x4000..0x8000).contains(&addr) {
-                    return self.ram_ext[(addr - 0x4000) as usize];
+                if self.ram_4000_seg1
+                    && (memory_map::RAM_EXT_SEG1_START..memory_map::RAM_EXT_SEG1_END)
+                        .contains(&addr)
+                {
+                    return self.ram_ext[(addr - memory_map::RAM_EXT_SEG1_START) as usize];
                 }
-                if self.ram_c000 && (0xC000..self.c000_ram_end).contains(&addr) {
+                if self.ram_c000 && (memory_map::UPPER_RAM_START..self.c000_ram_end).contains(&addr)
+                {
                     return self.ram[addr as usize];
                 }
             }
             if let Some(module) = &self.rom_module
-                && (0xC000..self.rom_module_end).contains(&addr)
+                && (memory_map::UPPER_RAM_START..self.rom_module_end).contains(&addr)
             {
-                return module[(addr - 0xC000) as usize];
+                return module[(addr - memory_map::UPPER_RAM_START) as usize];
             }
         }
-        let page = &self.mem.page_table[(addr >> 10) as usize];
-        let offset = (addr & 1023) as usize;
+        let page = &self.mem.page_table[(addr >> PAGE_SHIFT) as usize];
+        let offset = (addr & PAGE_OFFSET_MASK) as usize;
         match page.read {
             PageRef::Ram(base) => self.ram[base + offset],
             PageRef::Rom(base) => self.rom[base + offset],
-            PageRef::Unmapped => 0xFF,
+            PageRef::Unmapped => OPEN_BUS_VALUE,
         }
     }
 
@@ -486,56 +581,62 @@ impl Bus {
         if self.has_overlays {
             if self.chargen {
                 match addr {
-                    0xEBFC => {
+                    memory_map::CHARGEN_WINDOW_ON => {
                         self.chargen_window = true;
                         self.chargen_active = false;
                     }
-                    0xEBFE => {
+                    memory_map::CHARGEN_FONT_ON => {
                         self.chargen_active = true;
                         self.chargen_window = false;
                     }
-                    0xEBFF => {
+                    memory_map::CHARGEN_OFF => {
                         self.chargen_active = false;
                         self.chargen_window = false;
                     }
                     _ => {}
                 }
-                if self.chargen_window && (0xE800..0xEC00).contains(&addr) {
-                    self.chargen_ram[(addr - 0xE800) as usize] = data;
+                if self.chargen_window
+                    && (memory_map::COLOR_RAM_START..memory_map::COLOR_RAM_END).contains(&addr)
+                {
+                    self.chargen_ram[(addr - memory_map::COLOR_RAM_START) as usize] = data;
                     return;
                 }
             }
             if self.ram64k_module {
-                if self.ram_4000_seg1 && (0x4000..0x8000).contains(&addr) {
-                    self.ram_ext[(addr - 0x4000) as usize] = data;
+                if self.ram_4000_seg1
+                    && (memory_map::RAM_EXT_SEG1_START..memory_map::RAM_EXT_SEG1_END)
+                        .contains(&addr)
+                {
+                    self.ram_ext[(addr - memory_map::RAM_EXT_SEG1_START) as usize] = data;
                     return;
                 }
-                if self.ram_c000 && (0xC000..self.c000_ram_end).contains(&addr) {
+                if self.ram_c000 && (memory_map::UPPER_RAM_START..self.c000_ram_end).contains(&addr)
+                {
                     self.ram[addr as usize] = data;
                     return;
                 }
             }
             if self.graph_type == GraphicsModule::Krt
                 && self.graph_mode
-                && (0xEC00..0xF000).contains(&addr)
+                && (memory_map::VIDEO_RAM_START..memory_map::VIDEO_RAM_END).contains(&addr)
             {
-                self.ram_pixel[(self.graph_bank as usize) * 0x400 + (addr - 0xEC00) as usize] =
-                    data;
+                self.ram_pixel[(self.graph_bank as usize) * memory_map::VIDEO_RAM_SIZE
+                    + (addr - memory_map::VIDEO_RAM_START) as usize] = data;
                 return;
             }
             if self.c80_enabled && self.c80_memswap {
-                if (0xE800..0xEC00).contains(&addr) {
-                    self.ram_color2[(addr - 0xE800) as usize] = data;
+                if (memory_map::COLOR_RAM_START..memory_map::COLOR_RAM_END).contains(&addr) {
+                    self.ram_color2[(addr - memory_map::COLOR_RAM_START) as usize] = data;
                     return;
                 }
-                if (0xEC00..0xF000).contains(&addr) {
-                    self.ram_video2[(addr - 0xEC00) as usize] = data;
+                if (memory_map::VIDEO_RAM_START..memory_map::VIDEO_RAM_END).contains(&addr) {
+                    self.ram_video2[(addr - memory_map::VIDEO_RAM_START) as usize] = data;
                     return;
                 }
             }
         }
-        let page = &self.mem.page_table[(addr >> 10) as usize];
-        let offset = (addr & 1023) as usize;
+        let page = &self.mem.page_table[(addr >> PAGE_SHIFT) as usize];
+        let offset = (addr & PAGE_OFFSET_MASK) as usize;
         match page.write {
             PageRef::Ram(base) => self.ram[base + offset] = data,
             PageRef::Rom(base) => self.rom[base + offset] = data,
@@ -586,21 +687,21 @@ impl Bus {
         self.prev_user_write = user_write;
 
         if self.ram64k_module && (pins & (pins::IORQ | pins::M1 | pins::RD)) == pins::IORQ {
-            match (pins::addr(pins) & 0xFF) as u8 {
-                0x04 => self.ram_4000_seg1 = false,
-                0x05 => self.ram_4000_seg1 = true,
-                0x06 => self.ram_c000 = false,
-                0x07 => self.ram_c000 = true,
+            match (pins::addr(pins) & PORT_ADDR_MASK) as u8 {
+                ports::RAM64K_SEG1_OFF => self.ram_4000_seg1 = false,
+                ports::RAM64K_SEG1_ON => self.ram_4000_seg1 = true,
+                ports::RAM64K_C000_OFF => self.ram_c000 = false,
+                ports::RAM64K_C000_ON => self.ram_c000 = true,
                 _ => {}
             }
         }
 
         if self.c80_enabled && (pins & (pins::IORQ | pins::M1 | pins::RD)) == pins::IORQ {
-            match (pins::addr(pins) & 0xFF) as u8 {
-                0xA0 | 0xBE => self.c80_memswap = false,
-                0xA1 | 0xBF => self.c80_memswap = true,
-                0xA8 | 0xBC => self.c80_active = false,
-                0xA9 | 0xBD => self.c80_active = true,
+            match (pins::addr(pins) & PORT_ADDR_MASK) as u8 {
+                ports::C80_SWAP_OFF | ports::C80_SWAP_OFF_ALT => self.c80_memswap = false,
+                ports::C80_SWAP_ON | ports::C80_SWAP_ON_ALT => self.c80_memswap = true,
+                ports::C80_WIDE_OFF | ports::C80_WIDE_OFF_ALT => self.c80_active = false,
+                ports::C80_WIDE_ON | ports::C80_WIDE_ON_ALT => self.c80_active = true,
                 _ => {}
             }
         }
@@ -621,12 +722,14 @@ impl Bus {
 
         let pa_in = (!self.keyboard.scan_columns()) as u8;
         let pb_in = (!self.keyboard.scan_lines()) as u8;
-        pins = (pins & !(0xFFFF_u64 << 48)) | ((pa_in as u64) << 48) | ((pb_in as u64) << 56);
+        pins = (pins & !(0xFFFF_u64 << PIO_PORT_A_SHIFT))
+            | ((pa_in as u64) << PIO_PORT_A_SHIFT)
+            | ((pb_in as u64) << PIO_PORT_B_SHIFT);
 
         pins = self.pio2.tick(pins);
 
-        let pa_out = !((pins >> 48) as u8);
-        let pb_out = !((pins >> 56) as u8);
+        let pa_out = !((pins >> PIO_PORT_A_SHIFT) as u8);
+        let pb_out = !((pins >> PIO_PORT_B_SHIFT) as u8);
         self.keyboard.set_active_columns(pa_out as u16);
         self.keyboard.set_active_lines(pb_out as u16);
         pins &= pins::PIN_MASK;
@@ -652,9 +755,9 @@ impl Bus {
 
         if let Some(rtc) = &mut self.rtc
             && (pins & (pins::IORQ | pins::M1)) == pins::IORQ
-            && (pins::addr(pins) & 0xF0) == 0x60
+            && (pins::addr(pins) as u8 & ports::RTC_BASE_MASK) == ports::RTC_BASE
         {
-            let reg = (pins::addr(pins) & 0x0F) as u8;
+            let reg = pins::addr(pins) as u8 & ports::RTC_REG_MASK;
             if (pins & pins::RD) != 0 {
                 pins = pins::set_data(pins, rtc.read(reg));
             } else {
@@ -666,42 +769,46 @@ impl Bus {
         {
             let addr = pins::addr(pins);
             let reading = (pins & pins::RD) != 0;
-            match (addr & 0xFF) as u8 {
-                0xB8 => {
+            match (addr & PORT_ADDR_MASK) as u8 {
+                ports::GRAPH_CONTROL => {
                     if reading {
                         let mut v = match self.graph_type {
-                            GraphicsModule::Robotron => self.graph_bg | (self.graph_fg << 4),
+                            GraphicsModule::Robotron => {
+                                self.graph_bg | (self.graph_fg << COLOR_NIBBLE_SHIFT)
+                            }
                             GraphicsModule::Krt => self.graph_bank,
                             GraphicsModule::None => 0,
                         };
                         if self.graph_mode {
-                            v |= 0x08;
+                            v |= GRAPH_MODE_BIT;
                         }
                         if self.graph_type == GraphicsModule::Robotron && self.graph_border {
-                            v |= 0x40;
+                            v |= GRAPH_BORDER_READ_BIT;
                         }
                         pins = pins::set_data(pins, v);
                     } else {
                         let v = pins::data(pins);
                         match self.graph_type {
                             GraphicsModule::Robotron => {
-                                self.graph_bg = v & 0x07;
-                                self.graph_fg = (v >> 4) & 0x07;
-                                self.graph_border = (v & 0x80) != 0;
-                                self.graph_mode = (v & 0x08) != 0;
+                                self.graph_bg = v & COLOR_INDEX_MASK;
+                                self.graph_fg = (v >> COLOR_NIBBLE_SHIFT) & COLOR_INDEX_MASK;
+                                self.graph_border = (v & GRAPH_BORDER_WRITE_BIT) != 0;
+                                self.graph_mode = (v & GRAPH_MODE_BIT) != 0;
                             }
                             GraphicsModule::Krt => {
-                                self.graph_bank = v & 0x07;
-                                self.graph_mode = (v & 0x08) != 0;
+                                self.graph_bank = v & COLOR_INDEX_MASK;
+                                self.graph_mode = (v & GRAPH_MODE_BIT) != 0;
                             }
                             GraphicsModule::None => {}
                         }
                     }
                 }
-                0xB9 if self.graph_type == GraphicsModule::Robotron && !reading => {
+                ports::GRAPH_ADDR_LOW
+                    if self.graph_type == GraphicsModule::Robotron && !reading =>
+                {
                     self.graph_addr_l = pins::data(pins);
                 }
-                0xBA if self.graph_type == GraphicsModule::Robotron => {
+                ports::GRAPH_PIXEL if self.graph_type == GraphicsModule::Robotron => {
                     let px = (((addr >> 8) as usize) << 8) | self.graph_addr_l as usize;
                     if px < self.ram_pixel.len() {
                         if reading {
@@ -719,7 +826,7 @@ impl Bus {
         self.blink_counter = self.blink_counter.wrapping_sub(1);
         if old_blink == 0 {
             self.blink_counter = BLINK_TOGGLE_CYCLES;
-            self.blink_flip_flop ^= 0x80;
+            self.blink_flip_flop ^= BLINK_FLIP_FLOP_BIT;
         }
 
         (pins, beeper_toggled)
