@@ -22,6 +22,7 @@ use kc87::core::video::VideoRenderer;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
+use test_generator::test_resources;
 
 const KC87_OS_ROM: &[u8] = include_bytes!("../firmware/kc87/os.rom");
 const KC87_BASIC_ROM: &[u8] = include_bytes!("../firmware/kc87/basic.rom");
@@ -34,22 +35,8 @@ const Z9001_CHARGEN_ROM: &[u8] = include_bytes!("../firmware/z9001/chargen.rom")
 
 const BOOT_SENTINEL: &str = "os";
 
-#[test]
-fn replays_match_snapshots() {
-    let entries = match fs::read_dir("tests/replays") {
-        Ok(entries) => entries,
-        Err(_) => return,
-    };
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) == Some("json") {
-            run_replay(&path.to_string_lossy());
-        }
-    }
-}
-
-fn run_replay(replay_path_str: &str) {
+#[test_resources("tests/replays/*.json")]
+fn replay_matches_snapshot(replay_path_str: &str) {
     let mut player = ReplayPlayer::from_file(replay_path_str)
         .unwrap_or_else(|_| panic!("Failed to parse replay JSON: {:?}", replay_path_str));
 
