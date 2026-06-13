@@ -128,10 +128,11 @@ impl VideoRenderer {
         let has_color = machine_type == MachineType::KC87;
         let frame_border = PALETTE[(border_color & COLOR_INDEX_MASK) as usize];
 
-        let gap_color = if has_color { frame_border } else { PALETTE[0] };
+        let outer_border = if has_color { frame_border } else { PALETTE[0] };
+        let gap_color = outer_border;
 
         for px in self.frame_buffer.chunks_exact_mut(BYTES_PER_PIXEL) {
-            px.copy_from_slice(&frame_border);
+            px.copy_from_slice(&outer_border);
         }
 
         if bus.graph_robotron_active() {
