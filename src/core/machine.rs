@@ -20,8 +20,9 @@ use std::fmt;
 use u880::Cpu;
 
 use super::beeper::Beeper;
-use super::bus::Bus;
+use super::bus::{Bus, memory_map};
 use super::peripherals::UserPeripheral;
+use super::peripherals::keyboard::Key;
 
 pub const MASTER_CLOCK_HZ: u32 = 2_457_600;
 pub const CPU_DIVIDER: u32 = 1;
@@ -41,6 +42,33 @@ const KEY_RETURN: u8 = 0x0D;
 const SSS_LAUNCH_KEYS: &[u8] = b"BASIC\r";
 const SSS_RUN_KEYS: &[u8] = b"RUN\r";
 const SCREEN_STABLE_FRAMES: u32 = 8;
+const SSS_HEADER_LEN: usize = 11;
+const SSS_PROG_LEN_FIELD: usize = 2;
+const SSS_HEADER_ID_MIN: u8 = 0xD3;
+const SSS_HEADER_ID_MAX: u8 = 0xD8;
+const BASIC_END_PTR_OFFSETS: [u16; 3] = [42, 40, 38];
+
+const RESET_VECTOR: u16 = 0xF000;
+const ROM_BASIC_BEG: u16 = 0x0401;
+const RAM_BASIC_BEG: u16 = 0x2C01;
+const START_FLAGS: u8 = 0x10;
+const SCREEN_HASH_MULT: u32 = 31;
+
+const KCC_HEADER_LEN: usize = 128;
+const KCC_NAME_LEN: usize = 16;
+const KCC_NAME_ASCII_LIMIT: u8 = 0x80;
+const KCC_MAX_ADDR_COUNT: u8 = 3;
+const KCC_BASE_ADDR_COUNT: u8 = 2;
+const KCC_NUM_ADDR_OFF: usize = 16;
+const KCC_LOAD_ADDR_OFF: usize = 17;
+const KCC_END_ADDR_OFF: usize = 19;
+const KCC_EXEC_ADDR_OFF: usize = 21;
+
+const KCTAP_SIG: &[u8] = b"\xC3KC-TAPE by AF. ";
+const KCTAP_SIG_LEN: usize = 16;
+const KCTAP_BLOCK_PREFIX: usize = 17;
+const KCTAP_BLOCK_LEN: usize = 128;
+const KCTAP_MIN_LEN: usize = KCTAP_BLOCK_PREFIX + KCC_HEADER_LEN;
 
 #[derive(Clone, Copy)]
 enum SssStage {
@@ -167,7 +195,7 @@ impl Machine {
     ) -> Self {
         let mut cpu = Cpu::new();
         cpu.reset();
-        let pins = cpu.prefetch(0xF000);
+        let pins = cpu.prefetch(RESET_VECTOR);
 
         Self {
             cpu,
@@ -227,7 +255,7 @@ impl Machine {
 
     pub fn start_execution(&mut self, exec_addr: u16) {
         self.cpu.regs.a = 0x00;
-        self.cpu.regs.f = u880::Flags::from_bits_retain(0x10);
+        self.cpu.regs.f = u880::Flags::from_bits_retain(START_FLAGS);
         self.cpu.regs.set_bc(0x0000);
         self.cpu.regs.set_de(0x0000);
         self.cpu.regs.set_hl(0x0000);
@@ -243,32 +271,35 @@ impl Machine {
     }
 
     pub fn validate_kcc(data: &[u8]) -> Result<(u16, u16, Option<u16>), MachineError> {
-        if data.len() < 128 {
+        if data.len() < KCC_HEADER_LEN {
             return Err(MachineError::FileTooShort);
         }
-        if data[..16].iter().any(|&b| b >= 128) {
+        if data[..KCC_NAME_LEN]
+            .iter()
+            .any(|&b| b >= KCC_NAME_ASCII_LIMIT)
+        {
             return Err(MachineError::InvalidFormat);
         }
-        let num_addr = data[16];
-        if num_addr > 3 {
+        let num_addr = data[KCC_NUM_ADDR_OFF];
+        if num_addr > KCC_MAX_ADDR_COUNT {
             return Err(MachineError::InvalidFormat);
         }
-        let load_addr = u16::from_le_bytes([data[17], data[18]]);
-        let end_addr = u16::from_le_bytes([data[19], data[20]]);
+        let load_addr = u16::from_le_bytes([data[KCC_LOAD_ADDR_OFF], data[KCC_LOAD_ADDR_OFF + 1]]);
+        let end_addr = u16::from_le_bytes([data[KCC_END_ADDR_OFF], data[KCC_END_ADDR_OFF + 1]]);
         if end_addr <= load_addr {
             return Err(MachineError::InvalidFormat);
         }
 
         let mut exec_addr = None;
-        if num_addr > 2 {
-            let ea = u16::from_le_bytes([data[21], data[22]]);
+        if num_addr > KCC_BASE_ADDR_COUNT {
+            let ea = u16::from_le_bytes([data[KCC_EXEC_ADDR_OFF], data[KCC_EXEC_ADDR_OFF + 1]]);
             if ea < load_addr || ea > end_addr {
                 return Err(MachineError::InvalidFormat);
             }
             exec_addr = Some(ea);
         }
 
-        let required_len = (end_addr - load_addr) as usize + 128;
+        let required_len = (end_addr - load_addr) as usize + KCC_HEADER_LEN;
         if data.len() < required_len {
             return Err(MachineError::FileTooShort);
         }
@@ -278,7 +309,7 @@ impl Machine {
 
     pub fn load_kcc(&mut self, payload: &[u8], autorun: bool) -> Result<(), MachineError> {
         let (load_addr, end_addr, exec_addr) = Self::validate_kcc(payload)?;
-        let mut ptr = 128;
+        let mut ptr = KCC_HEADER_LEN;
         for addr in load_addr..end_addr {
             if ptr < payload.len() {
                 self.bus.write_memory(addr, payload[ptr]);
@@ -298,33 +329,41 @@ impl Machine {
     }
 
     pub fn validate_kctap(data: &[u8]) -> Result<(u16, u16, Option<u16>), MachineError> {
-        if data.len() <= 145 {
+        if data.len() <= KCTAP_MIN_LEN {
             return Err(MachineError::FileTooShort);
         }
-        let sig = b"\xC3KC-TAPE by AF. ";
-        if &data[0..16] != sig {
+        if &data[0..KCTAP_SIG_LEN] != KCTAP_SIG {
             return Err(MachineError::InvalidFormat);
         }
-        let num_addr = data[17 + 16];
-        if num_addr > 3 {
+        let num_addr = data[KCTAP_BLOCK_PREFIX + KCC_NUM_ADDR_OFF];
+        if num_addr > KCC_MAX_ADDR_COUNT {
             return Err(MachineError::InvalidFormat);
         }
-        let load_addr = u16::from_le_bytes([data[17 + 17], data[17 + 18]]);
-        let end_addr = u16::from_le_bytes([data[17 + 19], data[17 + 20]]);
+        let load_addr = u16::from_le_bytes([
+            data[KCTAP_BLOCK_PREFIX + KCC_LOAD_ADDR_OFF],
+            data[KCTAP_BLOCK_PREFIX + KCC_LOAD_ADDR_OFF + 1],
+        ]);
+        let end_addr = u16::from_le_bytes([
+            data[KCTAP_BLOCK_PREFIX + KCC_END_ADDR_OFF],
+            data[KCTAP_BLOCK_PREFIX + KCC_END_ADDR_OFF + 1],
+        ]);
         if end_addr <= load_addr {
             return Err(MachineError::InvalidFormat);
         }
 
         let mut exec_addr = None;
-        if num_addr > 2 {
-            let ea = u16::from_le_bytes([data[17 + 21], data[17 + 22]]);
+        if num_addr > KCC_BASE_ADDR_COUNT {
+            let ea = u16::from_le_bytes([
+                data[KCTAP_BLOCK_PREFIX + KCC_EXEC_ADDR_OFF],
+                data[KCTAP_BLOCK_PREFIX + KCC_EXEC_ADDR_OFF + 1],
+            ]);
             if ea < load_addr || ea > end_addr {
                 return Err(MachineError::InvalidFormat);
             }
             exec_addr = Some(ea);
         }
 
-        let required_len = (end_addr - load_addr) as usize + 145;
+        let required_len = (end_addr - load_addr) as usize + KCTAP_MIN_LEN;
         if data.len() < required_len {
             return Err(MachineError::FileTooShort);
         }
@@ -335,14 +374,14 @@ impl Machine {
     pub fn load_kctap(&mut self, payload: &[u8], autorun: bool) -> Result<(), MachineError> {
         let (load_addr, end_addr, exec_addr) = Self::validate_kctap(payload)?;
         let mut addr = load_addr;
-        let mut ptr = 145;
+        let mut ptr = KCTAP_MIN_LEN;
 
         while addr < end_addr {
             if ptr >= payload.len() {
                 break;
             }
             ptr += 1;
-            for _ in 0..128 {
+            for _ in 0..KCTAP_BLOCK_LEN {
                 if ptr >= payload.len() {
                     break;
                 }
@@ -376,9 +415,9 @@ impl Machine {
 
     fn basic_beg_addr(&self) -> u16 {
         if matches!(self.machine_type, MachineType::KC87) {
-            0x0401
+            ROM_BASIC_BEG
         } else {
-            0x2C01
+            RAM_BASIC_BEG
         }
     }
 
@@ -388,9 +427,11 @@ impl Machine {
     }
 
     fn screen_checksum(&self) -> u32 {
-        self.bus.ram[0xEC00..0xF000]
+        self.bus.ram[memory_map::VIDEO_RAM_START as usize..memory_map::VIDEO_RAM_END as usize]
             .iter()
-            .fold(0u32, |acc, &b| acc.wrapping_mul(31).wrapping_add(b as u32))
+            .fold(0u32, |acc, &b| {
+                acc.wrapping_mul(SCREEN_HASH_MULT).wrapping_add(b as u32)
+            })
     }
 
     fn set_sss_stage(&mut self, stage: SssStage) {
@@ -484,14 +525,14 @@ impl Machine {
     }
 
     pub fn load_sss(&mut self, payload: &[u8]) -> Result<(), MachineError> {
-        let (len_off, data_off) = if payload.len() >= 13
+        let (len_off, data_off) = if payload.len() >= SSS_HEADER_LEN + SSS_PROG_LEN_FIELD
             && payload[0] == payload[1]
             && payload[1] == payload[2]
-            && (0xD3..=0xD8).contains(&payload[0])
+            && (SSS_HEADER_ID_MIN..=SSS_HEADER_ID_MAX).contains(&payload[0])
         {
-            (11usize, 13usize)
+            (SSS_HEADER_LEN, SSS_HEADER_LEN + SSS_PROG_LEN_FIELD)
         } else {
-            (0usize, 2usize)
+            (0, SSS_PROG_LEN_FIELD)
         };
         if payload.len() < data_off {
             return Err(MachineError::FileTooShort);
@@ -504,7 +545,7 @@ impl Machine {
             self.bus.write_memory(beg.wrapping_add(i as u16), byte);
         }
         let top = beg.wrapping_add(n as u16);
-        for off in [42u16, 40, 38] {
+        for off in BASIC_END_PTR_OFFSETS {
             let addr = beg.wrapping_sub(off);
             self.bus.write_memory(addr, (top & 0xFF) as u8);
             self.bus
@@ -514,12 +555,12 @@ impl Machine {
     }
 
     #[inline(always)]
-    pub fn key_down(&mut self, key: i32) {
+    pub fn key_down(&mut self, key: Key) {
         self.bus.keyboard.key_down(key);
     }
 
     #[inline(always)]
-    pub fn key_up(&mut self, key: i32) {
+    pub fn key_up(&mut self, key: Key) {
         self.bus.keyboard.key_up(key);
     }
 

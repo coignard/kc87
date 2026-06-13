@@ -40,6 +40,7 @@ use kc87::core::machine::{
     CPU_DIVIDER, DEFAULT_FRAME_CYCLES, Hardware, LoadFormat, MASTER_CLOCK_HZ, Machine, MachineType,
 };
 use kc87::core::peripherals::UserPeripheral;
+use kc87::core::peripherals::keyboard::Key;
 use kc87::core::peripherals::midi::MidiInterface;
 use kc87::core::video::VideoRenderer;
 
@@ -53,6 +54,7 @@ const MIDI_CC_ALL_SOUND_OFF: u8 = 120;
 const MIDI_CC_ALL_NOTES_OFF: u8 = 123;
 const MIDI_CHANNELS_COUNT: u8 = 16;
 const MIDI_VOICE_MSG_LEN: usize = 3;
+const FAST_FORWARD_HOLD_MS: u64 = 500;
 const MIDI_SYNC_LAG_FRAMES: f64 = 3.0;
 
 const FRAME_CHANNEL_CAPACITY: usize = 2;
@@ -107,7 +109,7 @@ struct EmulationFrame {
 }
 
 enum EmulationCommand {
-    KeyEvent { key: i32, pressed: bool },
+    KeyEvent { key: Key, pressed: bool },
     TogglePause,
     StepFrame,
     SetFastForward(bool),
@@ -526,7 +528,7 @@ impl ApplicationHandler for App {
         if let Some(since) = self.f9_pressed_since
             && self.paused
             && !self.is_fast_forwarding
-            && since.elapsed() > Duration::from_millis(500)
+            && since.elapsed() > Duration::from_millis(FAST_FORWARD_HOLD_MS)
         {
             self.is_fast_forwarding = true;
             let _ = self.cmd_tx.send(EmulationCommand::SetFastForward(true));

@@ -342,15 +342,36 @@ fn main() -> Result<()> {
     let matches = cmd.get_matches();
     let args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
-    let machine_type: MachineType = args.machine.into();
+    let player = if let Some(path) = &args.play {
+        Some(ReplayPlayer::from_file(path)?)
+    } else {
+        None
+    };
+
+    let machine_type: MachineType = player
+        .as_ref()
+        .map(|p| p.replay.metadata.machine_type)
+        .unwrap_or_else(|| args.machine.into());
     let midi_name = midi_client_name(machine_type);
 
-    let hardware = Hardware {
-        ram: args.ram.map(RamSize::from).unwrap_or_default(),
-        chargen: args.pzg,
-        graphics: args.graphics.map(GraphicsModule::from).unwrap_or_default(),
-        c80: args.col80,
-        rtc: args.rtc,
+    let hardware = match player.as_ref() {
+        Some(p) => {
+            let m = &p.replay.metadata;
+            Hardware {
+                ram: m.ram,
+                chargen: m.chargen,
+                graphics: m.graphics,
+                c80: m.c80,
+                rtc: m.rtc,
+            }
+        }
+        None => Hardware {
+            ram: args.ram.map(RamSize::from).unwrap_or_default(),
+            chargen: args.pzg,
+            graphics: args.graphics.map(GraphicsModule::from).unwrap_or_default(),
+            c80: args.col80,
+            rtc: args.rtc,
+        },
     };
 
     if matches!(hardware.graphics, GraphicsModule::Robotron)
@@ -442,6 +463,11 @@ fn main() -> Result<()> {
         },
     };
 
+    let program_format = player
+        .as_ref()
+        .map(|p| p.replay.metadata.payload_format)
+        .unwrap_or(program_format);
+
     let (payload, program, program_sha256, program_name) = if let Some(path) = &program_path {
         let data = fs::read(path).with_context(|| format!("could not read '{}'", path))?;
         let sha256 = hex::encode(Sha256::digest(&data));
@@ -473,13 +499,9 @@ fn main() -> Result<()> {
         (None, None, None)
     };
 
-    let player = if let Some(path) = &args.play {
-        let player = ReplayPlayer::from_file(path)?;
-        player.verify_program_hash(&program_sha256)?;
-        Some(player)
-    } else {
-        None
-    };
+    if let Some(p) = &player {
+        p.verify_program_hash(&program_sha256)?;
+    }
 
     let autorun = player
         .as_ref()
