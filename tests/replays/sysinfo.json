@@ -1,0 +1,371 @@
+{
+  "metadata": {
+    "program": "sysinfo.tap",
+    "program_sha256": "bee5cf934391d1dac8e67c2858364bee8733dc3f4b43d052e90df45f1f612cef",
+    "autorun": true,
+    "sample_rate": 48000,
+    "machine_type": "KC87",
+    "ram": "K64",
+    "chargen": false,
+    "graphics": "None",
+    "c80": false,
+    "rtc": false,
+    "payload_format": "auto",
+    "rom_module": null,
+    "rom_module_sha256": null
+  },
+  "events": [
+    {
+      "frame": 6144000,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_6144000"
+        }
+      }
+    },
+    {
+      "frame": 6193152,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_6193152"
+        }
+      }
+    },
+    {
+      "frame": 6635520,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_6635520"
+        }
+      }
+    },
+    {
+      "frame": 6684672,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_6684672"
+        }
+      }
+    },
+    {
+      "frame": 6733824,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_6733824"
+        }
+      }
+    },
+    {
+      "frame": 15925248,
+      "action": {
+        "KeyDown": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 16121856,
+      "action": {
+        "KeyUp": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 16957440,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 17055744,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 19070976,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_19070976"
+        }
+      }
+    },
+    {
+      "frame": 19808256,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_19808256"
+        }
+      }
+    },
+    {
+      "frame": 20004864,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_20004864"
+        }
+      }
+    },
+    {
+      "frame": 20054016,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_20054016"
+        }
+      }
+    },
+    {
+      "frame": 22069248,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 22216704,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 26836992,
+      "action": {
+        "KeyDown": {
+          "key": "Num2"
+        }
+      }
+    },
+    {
+      "frame": 27033600,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 27033600,
+      "action": {
+        "KeyUp": {
+          "key": "Num2"
+        }
+      }
+    },
+    {
+      "frame": 27181056,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 28655616,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_28655616"
+        }
+      }
+    },
+    {
+      "frame": 28901376,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_28901376"
+        }
+      }
+    },
+    {
+      "frame": 30867456,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_30867456"
+        }
+      }
+    },
+    {
+      "frame": 32833536,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_32833536"
+        }
+      }
+    },
+    {
+      "frame": 34062336,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 34357248,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 42270720,
+      "action": {
+        "KeyDown": {
+          "key": "Num7"
+        }
+      }
+    },
+    {
+      "frame": 42467328,
+      "action": {
+        "KeyUp": {
+          "key": "Num7"
+        }
+      }
+    },
+    {
+      "frame": 43548672,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 43696128,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 48513024,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_48513024"
+        }
+      }
+    },
+    {
+      "frame": 49643520,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 49840128,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 55640064,
+      "action": {
+        "KeyDown": {
+          "key": "Num8"
+        }
+      }
+    },
+    {
+      "frame": 55836672,
+      "action": {
+        "KeyUp": {
+          "key": "Num8"
+        }
+      }
+    },
+    {
+      "frame": 57114624,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 57311232,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 102334464,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_102334464"
+        }
+      }
+    },
+    {
+      "frame": 103514112,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 103612416,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 108232704,
+      "action": {
+        "KeyDown": {
+          "key": "Num9"
+        }
+      }
+    },
+    {
+      "frame": 108429312,
+      "action": {
+        "KeyUp": {
+          "key": "Num9"
+        }
+      }
+    },
+    {
+      "frame": 109608960,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 109707264,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 110247936,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_110247936"
+        }
+      }
+    }
+  ]
+}
