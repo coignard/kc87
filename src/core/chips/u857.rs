@@ -52,6 +52,11 @@ const INT_REQUESTED: u8 = 1 << 1;
 const INT_SERVICED: u8 = 1 << 2;
 
 const NUM_CHANNELS: usize = 4;
+const ZCTO_CHANNEL_COUNT: usize = 3;
+const PRESCALER_16_MASK: u8 = 0x0F;
+const PRESCALER_256_MASK: u8 = 0xFF;
+const INT_VECTOR_BASE_MASK: u8 = 0xF8;
+const VECTOR_CHANNEL_STEP: u8 = 2;
 
 #[derive(Clone, Copy, Default, Serialize, Deserialize)]
 struct U857Channel {
@@ -97,7 +102,7 @@ impl U857 {
             ch.down_counter = 0;
             ch.waiting_for_trigger = false;
             ch.trigger_edge = false;
-            ch.prescaler_mask = 0x0F;
+            ch.prescaler_mask = PRESCALER_16_MASK;
             ch.int_state = 0;
             ch.running = false;
         }
@@ -109,7 +114,7 @@ impl U857 {
             ch.int_state |= INT_NEEDED;
         }
 
-        if chn_id < 3 {
+        if chn_id < ZCTO_CHANNEL_COUNT {
             current_pins |= ZCTO0 << chn_id;
             self.pins = current_pins;
         }
@@ -156,9 +161,9 @@ impl U857 {
             }
             ch.trigger_edge = (data & CTRL_EDGE) == CTRL_EDGE_RISING;
             ch.prescaler_mask = if (ch.control & CTRL_PRESCALER) == CTRL_PRESCALER_16 {
-                0x0F
+                PRESCALER_16_MASK
             } else {
-                0xFF
+                PRESCALER_256_MASK
             };
 
             if (old_ctrl & CTRL_EDGE) != (ch.control & CTRL_EDGE) {
@@ -166,7 +171,8 @@ impl U857 {
             }
         } else if chn_id == 0 {
             for i in 0..NUM_CHANNELS {
-                self.chn[i].int_vector = (data & 0xF8) + (i as u8 * 2);
+                self.chn[i].int_vector =
+                    (data & INT_VECTOR_BASE_MASK) + (i as u8 * VECTOR_CHANNEL_STEP);
             }
         }
         current_pins

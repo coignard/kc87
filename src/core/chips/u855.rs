@@ -44,6 +44,23 @@ const INT_NEEDED: u8 = 1 << 0;
 const INT_REQUESTED: u8 = 1 << 1;
 const INT_SERVICED: u8 = 1 << 2;
 
+const CTRL_CMD_MASK: u8 = 0x0F;
+const CMD_VECTOR_BIT: u8 = 0x01;
+const CMD_SET_MODE: u8 = 0x0F;
+const CMD_INT_CONTROL: u8 = 0x07;
+const CMD_INT_ENABLE: u8 = 0x03;
+const MODE_SHIFT: u8 = 6;
+const INTCTRL_BITS_MASK: u8 = 0xF0;
+const PORTA_STATUS_MASK: u8 = 0xC0;
+const PORTB_STATUS_SHIFT: u8 = 4;
+const INT_MASK_ALL: u8 = 0xFF;
+const PORT_FLOAT: u8 = 0xFF;
+const INT_LOGIC_MASK: u8 = 0x60;
+const INT_LOGIC_OR_LOW: u8 = 0x00;
+const INT_LOGIC_OR_HIGH: u8 = 0x20;
+const INT_LOGIC_AND_LOW: u8 = 0x40;
+const INT_LOGIC_AND_HIGH: u8 = 0x60;
+
 #[derive(Clone, Copy, Default, Serialize, Deserialize)]
 struct U855Port {
     input: u8,
@@ -95,7 +112,7 @@ impl U855 {
             port.output = 0;
             port.io_select = 0;
             port.int_control &= !INTCTRL_EI;
-            port.int_mask = 0xFF;
+            port.int_mask = INT_MASK_ALL;
             port.int_enabled = false;
             port.expect_int_mask = false;
             port.expect_io_select = false;
@@ -118,20 +135,20 @@ impl U855 {
             p.int_enabled = (p.int_control & INTCTRL_EI) != 0;
             p.expect_int_mask = false;
         } else {
-            let ctrl = data & 0x0F;
-            if (ctrl & 1) == 0 {
+            let ctrl = data & CTRL_CMD_MASK;
+            if (ctrl & CMD_VECTOR_BIT) == 0 {
                 p.int_vector = data;
                 p.int_control |= INTCTRL_EI;
                 p.int_enabled = true;
-            } else if ctrl == 0x0F {
-                p.mode = data >> 6;
+            } else if ctrl == CMD_SET_MODE {
+                p.mode = data >> MODE_SHIFT;
                 if p.mode == MODE_BITCONTROL {
                     p.expect_io_select = true;
                     p.int_enabled = false;
                     p.bctrl_match = false;
                 }
-            } else if ctrl == 0x07 {
-                p.int_control = data & 0xF0;
+            } else if ctrl == CMD_INT_CONTROL {
+                p.int_control = data & INTCTRL_BITS_MASK;
                 if (data & INTCTRL_MASK_FOLLOWS) != 0 {
                     p.expect_int_mask = true;
                     p.int_enabled = false;
@@ -140,7 +157,7 @@ impl U855 {
                 } else {
                     p.int_enabled = (p.int_control & INTCTRL_EI) != 0;
                 }
-            } else if ctrl == 0x03 {
+            } else if ctrl == CMD_INT_ENABLE {
                 p.int_control = (data & INTCTRL_EI) | (p.int_control & !INTCTRL_EI);
                 p.int_enabled = (p.int_control & INTCTRL_EI) != 0;
             }
@@ -148,7 +165,8 @@ impl U855 {
     }
 
     fn read_ctrl(&self) -> u8 {
-        (self.ports[0].int_control & 0xC0) | (self.ports[1].int_control >> 4)
+        (self.ports[0].int_control & PORTA_STATUS_MASK)
+            | (self.ports[1].int_control >> PORTB_STATUS_SHIFT)
     }
 
     fn write_data(&mut self, port_id: usize, data: u8) {
@@ -167,7 +185,7 @@ impl U855 {
         match p.mode {
             MODE_OUTPUT => p.output,
             MODE_INPUT => p.input,
-            MODE_BIDIRECTIONAL => 0xFF,
+            MODE_BIDIRECTIONAL => PORT_FLOAT,
             MODE_BITCONTROL => (p.input & p.io_select) | (p.output & !p.io_select),
             _ => unreachable!(),
         }
@@ -177,7 +195,7 @@ impl U855 {
         for (i, p) in self.ports.iter().enumerate() {
             let data = match p.mode {
                 MODE_OUTPUT => p.output,
-                MODE_INPUT | MODE_BIDIRECTIONAL => 0xFF,
+                MODE_INPUT | MODE_BIDIRECTIONAL => PORT_FLOAT,
                 MODE_BITCONTROL => p.io_select | (p.output & !p.io_select),
                 _ => unreachable!(),
             };
@@ -256,12 +274,12 @@ impl U855 {
                     let mask = !p.int_mask;
                     let masked_val = val & mask;
 
-                    let ictrl = p.int_control & 0x60;
+                    let ictrl = p.int_control & INT_LOGIC_MASK;
                     let match_found = match ictrl {
-                        0 => masked_val != mask,
-                        0x20 => masked_val != 0,
-                        0x40 => masked_val == 0,
-                        0x60 => masked_val == mask,
+                        INT_LOGIC_OR_LOW => masked_val != mask,
+                        INT_LOGIC_OR_HIGH => masked_val != 0,
+                        INT_LOGIC_AND_LOW => masked_val == 0,
+                        INT_LOGIC_AND_HIGH => masked_val == mask,
                         _ => false,
                     };
 

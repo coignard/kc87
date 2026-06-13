@@ -17,6 +17,31 @@
 
 use chrono::{Datelike, Local, Timelike};
 
+const REG_MASK: u8 = 0x0F;
+const MODE_REG: u8 = 0x0F;
+
+const SEC_UNITS: u8 = 0;
+const SEC_TENS: u8 = 1;
+const MIN_UNITS: u8 = 2;
+const MIN_TENS: u8 = 3;
+const HOUR_UNITS: u8 = 4;
+const HOUR_TENS: u8 = 5;
+const DAY_UNITS: u8 = 6;
+const DAY_TENS: u8 = 7;
+const MONTH_UNITS: u8 = 8;
+const MONTH_TENS: u8 = 9;
+const YEAR_UNITS: u8 = 10;
+const YEAR_TENS: u8 = 11;
+const WEEKDAY: u8 = 12;
+
+const BCD_BASE: u32 = 10;
+const TENS_3BIT_MASK: u32 = 0x07;
+const TENS_2BIT_MASK: u32 = 0x03;
+const TENS_1BIT_MASK: u32 = 0x01;
+const HOUR12_TENS_MASK: u32 = 0x01;
+const NOON_HOUR: u32 = 12;
+const AMPM_24H_BIT: u8 = 0x04;
+
 #[derive(Default)]
 pub struct Rtc7242x {
     mode12h: bool,
@@ -36,35 +61,35 @@ impl Rtc7242x {
         let month = now.month();
         let year = now.year() as u32;
 
-        let value = match reg & 0x0F {
-            0 => second % 10,
-            1 => (second / 10) & 0x07,
-            2 => minute % 10,
-            3 => (minute / 10) & 0x07,
-            4 => hour % 10,
-            5 => {
+        let value = match reg & REG_MASK {
+            SEC_UNITS => second % BCD_BASE,
+            SEC_TENS => (second / BCD_BASE) & TENS_3BIT_MASK,
+            MIN_UNITS => minute % BCD_BASE,
+            MIN_TENS => (minute / BCD_BASE) & TENS_3BIT_MASK,
+            HOUR_UNITS => hour % BCD_BASE,
+            HOUR_TENS => {
                 if self.mode12h {
-                    let mut v = ((hour % 12) / 10) & 0x01;
-                    if hour >= 12 {
-                        v |= 0x04;
+                    let mut v = ((hour % NOON_HOUR) / BCD_BASE) & HOUR12_TENS_MASK;
+                    if hour >= NOON_HOUR {
+                        v |= AMPM_24H_BIT as u32;
                     }
                     v
                 } else {
-                    (hour / 10) & 0x03
+                    (hour / BCD_BASE) & TENS_2BIT_MASK
                 }
             }
-            6 => day % 10,
-            7 => (day / 10) & 0x03,
-            8 => month % 10,
-            9 => (month / 10) & 0x01,
-            10 => year % 10,
-            11 => (year / 10) % 10,
-            12 => now.weekday().num_days_from_sunday(),
-            15 => {
+            DAY_UNITS => day % BCD_BASE,
+            DAY_TENS => (day / BCD_BASE) & TENS_2BIT_MASK,
+            MONTH_UNITS => month % BCD_BASE,
+            MONTH_TENS => (month / BCD_BASE) & TENS_1BIT_MASK,
+            YEAR_UNITS => year % BCD_BASE,
+            YEAR_TENS => (year / BCD_BASE) % BCD_BASE,
+            WEEKDAY => now.weekday().num_days_from_sunday(),
+            MODE_REG => {
                 if self.mode12h {
                     0
                 } else {
-                    0x04
+                    AMPM_24H_BIT as u32
                 }
             }
             _ => 0,
@@ -73,8 +98,8 @@ impl Rtc7242x {
     }
 
     pub fn write(&mut self, reg: u8, value: u8) {
-        if reg & 0x0F == 0x0F {
-            self.mode12h = (value & 0x04) == 0;
+        if reg & REG_MASK == MODE_REG {
+            self.mode12h = (value & AMPM_24H_BIT) == 0;
         }
     }
 }
