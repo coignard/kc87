@@ -76,6 +76,10 @@ UPDATE_SNAPSHOTS=1 cargo test
 
 Please note that changes to [u880](https://github.com/coignard/u880) that affect instruction timing or CPU state require manually reviewing and rerecording the affected replays, not just regenerating snapshots.
 
+## Credits
+
+Thanks to Volker Pohlers for his Z9001/KC 87 documentation and test programs, ens Müller for his JKCEMU source code, which was a reference for the RTC, 80-column mode, PZG, and Robotron/KRT graphics implementations, Andre Weissflog for inspiring this project with his KC 87 emulator, and Olga Podivilova for the KC 87 illustration.
+
 ## License
 
 The KC 87 source code is © 2026 René Coignard and licensed under the [GNU General Public License v3.0 or later](LICENSE).
