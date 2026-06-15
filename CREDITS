@@ -1,5 +1,15 @@
 Credits
 =======
 
+Jens Müller
+ - JKCEMU source code reference for the RTC, 80-column mode,
+   PZG, and Robotron/KRT graphics implementations.
+
+Andre Weissflog
+ - The inspiration for this project through his KC 87 emulator.
+
+Volker Pohlers
+ - Z9001/KC 87 documentation and test programs.
+
 Olga Podivilova
  - Illustrated the KC 87 artwork used in the README.
