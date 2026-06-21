@@ -18,6 +18,8 @@
 use serde::{Deserialize, Serialize};
 use u880::pins;
 
+use super::{INT_NEEDED, daisy_chain_step};
+
 pub const CE: u64 = 1 << 40;
 pub const BASEL: u64 = 1 << 41;
 pub const CDSEL: u64 = 1 << 42;
@@ -39,10 +41,6 @@ const MODE_BITCONTROL: u8 = 3;
 
 const INTCTRL_EI: u8 = 1 << 7;
 const INTCTRL_MASK_FOLLOWS: u8 = 1 << 4;
-
-const INT_NEEDED: u8 = 1 << 0;
-const INT_REQUESTED: u8 = 1 << 1;
-const INT_SERVICED: u8 = 1 << 2;
 
 const CTRL_CMD_MASK: u8 = 0x0F;
 const CMD_VECTOR_BIT: u8 = 0x01;
@@ -232,27 +230,7 @@ impl U855 {
 
     fn handle_int(&mut self, mut current_pins: u64) -> u64 {
         for p in &mut self.ports {
-            if (current_pins & pins::RETI) != 0 && (p.int_state & INT_SERVICED) != 0 {
-                p.int_state &= !INT_SERVICED;
-                current_pins &= !pins::RETI;
-            }
-
-            if p.int_state != 0 && (current_pins & pins::IEIO) != 0 {
-                current_pins &= !pins::IEIO;
-
-                if (p.int_state & INT_NEEDED) != 0 {
-                    current_pins |= pins::INT;
-                    p.int_state = (p.int_state & !INT_NEEDED) | INT_REQUESTED;
-                }
-
-                if (p.int_state & INT_REQUESTED) != 0
-                    && (current_pins & (pins::IORQ | pins::M1)) == (pins::IORQ | pins::M1)
-                {
-                    current_pins = pins::set_data(current_pins, p.int_vector);
-                    p.int_state = (p.int_state & !INT_REQUESTED) | INT_SERVICED;
-                    current_pins &= !pins::INT;
-                }
-            }
+            current_pins = daisy_chain_step(current_pins, &mut p.int_state, p.int_vector);
         }
         current_pins
     }

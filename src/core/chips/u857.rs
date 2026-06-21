@@ -18,6 +18,8 @@
 use serde::{Deserialize, Serialize};
 use u880::pins;
 
+use super::{INT_NEEDED, daisy_chain_step};
+
 pub const CE: u64 = 1 << 40;
 pub const CS0: u64 = 1 << 41;
 pub const CS1: u64 = 1 << 42;
@@ -46,10 +48,6 @@ const CTRL_TRIGGER_WAIT: u8 = 1 << 3;
 const CTRL_CONST_FOLLOWS: u8 = 1 << 2;
 const CTRL_RESET: u8 = 1 << 1;
 const CTRL_CONTROL: u8 = 1 << 0;
-
-const INT_NEEDED: u8 = 1 << 0;
-const INT_REQUESTED: u8 = 1 << 1;
-const INT_SERVICED: u8 = 1 << 2;
 
 const NUM_CHANNELS: usize = 4;
 const ZCTO_CHANNEL_COUNT: usize = 3;
@@ -227,27 +225,7 @@ impl U857 {
 
     fn handle_int(&mut self, mut current_pins: u64) -> u64 {
         for ch in &mut self.chn {
-            if (current_pins & pins::RETI) != 0 && (ch.int_state & INT_SERVICED) != 0 {
-                ch.int_state &= !INT_SERVICED;
-                current_pins &= !pins::RETI;
-            }
-
-            if ch.int_state != 0 && (current_pins & pins::IEIO) != 0 {
-                current_pins &= !pins::IEIO;
-
-                if (ch.int_state & INT_NEEDED) != 0 {
-                    current_pins |= pins::INT;
-                    ch.int_state = (ch.int_state & !INT_NEEDED) | INT_REQUESTED;
-                }
-
-                if (ch.int_state & INT_REQUESTED) != 0
-                    && (current_pins & (pins::IORQ | pins::M1)) == (pins::IORQ | pins::M1)
-                {
-                    current_pins = pins::set_data(current_pins, ch.int_vector);
-                    ch.int_state = (ch.int_state & !INT_REQUESTED) | INT_SERVICED;
-                    current_pins &= !pins::INT;
-                }
-            }
+            current_pins = daisy_chain_step(current_pins, &mut ch.int_state, ch.int_vector);
         }
         current_pins
     }
