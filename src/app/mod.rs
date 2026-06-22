@@ -224,9 +224,7 @@ fn run_midi_thread(
                     if Instant::now().duration_since(target_time) > sync_lag_threshold {
                         track_note(&midi_data, &mut active_notes);
 
-                        while let Some(stale) =
-                            queue.pop_front().or_else(|| rx.try_recv().ok())
-                        {
+                        while let Some(stale) = queue.pop_front().or_else(|| rx.try_recv().ok()) {
                             match stale {
                                 MidiThreadMsg::Event(d, _) => {
                                     track_note(&d, &mut active_notes);

@@ -107,7 +107,12 @@ fn open_midi_output(client_name: &str, midi_arg: &str) -> Option<MidiConn> {
         ports
             .iter()
             .find(|p| midi_out.port_name(p).is_ok_and(|name| name == *midi_arg))
-            .or_else(|| midi_arg.parse::<usize>().ok().and_then(|idx| ports.get(idx)))
+            .or_else(|| {
+                midi_arg
+                    .parse::<usize>()
+                    .ok()
+                    .and_then(|idx| ports.get(idx))
+            })
             .cloned()
     };
 
