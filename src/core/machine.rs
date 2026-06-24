@@ -58,7 +58,6 @@ const KCC_HEADER_LEN: usize = 128;
 const KCC_NAME_LEN: usize = 16;
 const KCC_NAME_ASCII_LIMIT: u8 = 0x80;
 const KCC_MAX_ADDR_COUNT: u8 = 3;
-const KCC_BASE_ADDR_COUNT: u8 = 2;
 const KCC_NUM_ADDR_OFF: usize = 16;
 const KCC_LOAD_ADDR_OFF: usize = 17;
 const KCC_END_ADDR_OFF: usize = 19;
@@ -290,14 +289,12 @@ impl Machine {
             return Err(MachineError::InvalidFormat);
         }
 
-        let mut exec_addr = None;
-        if num_addr > KCC_BASE_ADDR_COUNT {
-            let ea = u16::from_le_bytes([data[KCC_EXEC_ADDR_OFF], data[KCC_EXEC_ADDR_OFF + 1]]);
-            if ea < load_addr || ea > end_addr {
-                return Err(MachineError::InvalidFormat);
-            }
-            exec_addr = Some(ea);
-        }
+        let ea = u16::from_le_bytes([data[KCC_EXEC_ADDR_OFF], data[KCC_EXEC_ADDR_OFF + 1]]);
+        let exec_addr = if ea != 0 && ea != 0xFFFF {
+            Some(ea)
+        } else {
+            None
+        };
 
         let required_len = (end_addr - load_addr) as usize + KCC_HEADER_LEN;
         if data.len() < required_len {
@@ -351,17 +348,15 @@ impl Machine {
             return Err(MachineError::InvalidFormat);
         }
 
-        let mut exec_addr = None;
-        if num_addr > KCC_BASE_ADDR_COUNT {
-            let ea = u16::from_le_bytes([
-                data[KCTAP_BLOCK_PREFIX + KCC_EXEC_ADDR_OFF],
-                data[KCTAP_BLOCK_PREFIX + KCC_EXEC_ADDR_OFF + 1],
-            ]);
-            if ea < load_addr || ea > end_addr {
-                return Err(MachineError::InvalidFormat);
-            }
-            exec_addr = Some(ea);
-        }
+        let ea = u16::from_le_bytes([
+            data[KCTAP_BLOCK_PREFIX + KCC_EXEC_ADDR_OFF],
+            data[KCTAP_BLOCK_PREFIX + KCC_EXEC_ADDR_OFF + 1],
+        ]);
+        let exec_addr = if ea != 0 && ea != 0xFFFF {
+            Some(ea)
+        } else {
+            None
+        };
 
         let required_len = (end_addr - load_addr) as usize + KCTAP_MIN_LEN;
         if data.len() < required_len {
