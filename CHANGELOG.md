@@ -5,7 +5,7 @@
 ### Added
 
 - `--bin file@address` loads a raw, headerless binary at an explicit address (decimal or hex), and may be repeated.
-- An `.sss` program can be loaded together with the modules it depends on — a driver via `--kcc`/`--tap` and data via `--bin`, for example `kc87 --graphics=robotron --sss eric-basic.sss --tap graf_com.tap --bin eric-data.bin@0x2E00 -a`. Modules are pre-loaded after BASIC comes up and are never auto-executed.
+- An `.sss` program can be loaded together with the modules it depends on: a driver via `--kcc`/`--tap` and data via `--bin`, for example `kc87 --graphics=robotron --sss eric-basic.sss --tap graf_com.tap --bin eric-data.bin@0x2E00 -a`. Modules are pre-loaded after BASIC comes up and are never auto-executed.
 - `-a`/`--autorun` with no program now auto-enters BASIC instead of doing nothing.
 
 ### Changed
