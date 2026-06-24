@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.2
+
+### Added
+
+- `--bin file@address` loads a raw, headerless binary at an explicit address (decimal or hex), and may be repeated.
+- An `.sss` program can be loaded together with the modules it depends on — a driver via `--kcc`/`--tap` and data via `--bin`, for example `kc87 --graphics=robotron --sss eric-basic.sss --tap graf_com.tap --bin eric-data.bin@0x2E00 -a`. Modules are pre-loaded after BASIC comes up and are never auto-executed.
+- `-a`/`--autorun` with no program now auto-enters BASIC instead of doing nothing.
+
+### Changed
+
+- `--sss` no longer conflicts with `--kcc`/`--tap`; a lone machine-code module with no `--sss`/`--bin` keeps the previous run-the-program behaviour.
+- The `.sss` autoloader answers "MEMORY END:" with the lowest module's load address minus one, so BASIC's RAM sizing reaches none of the modules.
+- Replays record the pre-loaded modules (name, SHA-256, load address) via `ReplayMetadata::modules`; the e2e harness reconstructs and hash-checks them.
+
 ## 0.3.1
 
 ### Fixed
