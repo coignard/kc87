@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+### Fixed
+
+- KCC and KC-TAP loader now reads the execution address from header offset 21 unconditionally, instead of only when `num_addr > 2`. Files that declare two address fields yet store a valid entry point previously jumped to the load address and executed packed image bytes as Z80 instructions. Values 0x0000 and 0xFFFF are treated as "no autostart", matching JKCEMU's `FileInfo.getStartAddr` behaviour. The unused constant `KCC_BASE_ADDR_COUNT` has been removed.
+
 ## 0.3.0
 
 On macOS the MIDI output now uses CoreMIDI directly with host-timestamped, driver-scheduled delivery instead of midir's immediate send. Each message is handed to the driver stamped with the exact host time derived from the emulated CPU cycle on which the music program emitted it, so notes land on their cycle-accurate beat without the scheduler wake-up jitter of a busy-wait followed by an immediate send. The note-to-note intervals computed by the assembly program are reproduced exactly at the output. Every other platform continues to use midir's immediate-send API and is unchanged.
