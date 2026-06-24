@@ -17,7 +17,7 @@
 
 use assert_json_diff::assert_json_eq;
 use kc87::core::debug::ReplayPlayer;
-use kc87::core::machine::{Hardware, Machine, MachineType};
+use kc87::core::machine::{Hardware, Machine, MachineType, ModulePreload};
 use kc87::core::video::VideoRenderer;
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -110,12 +110,39 @@ fn replay_matches_snapshot(replay_path_str: &str) {
     );
     let mut video = VideoRenderer::new(font_rom, hardware.c80);
 
+    let modules: Vec<ModulePreload> = player
+        .replay
+        .metadata
+        .modules
+        .iter()
+        .map(|m| {
+            let module_path = PathBuf::from("tests/assets").join(&m.name);
+            let data = fs::read(&module_path)
+                .unwrap_or_else(|_| panic!("Failed to read module at {:?}", module_path));
+            let actual = hex::encode(Sha256::digest(&data));
+            assert_eq!(
+                m.sha256, actual,
+                "module hash mismatch for '{}' ({:?})",
+                m.name, machine_type
+            );
+            match m.addr {
+                Some(addr) => ModulePreload::raw(data, addr),
+                None => ModulePreload::headered(data),
+            }
+        })
+        .collect();
+
     if base_name == BOOT_SENTINEL {
         assert_eq!(
             os_rom_hash, player.replay.metadata.program_sha256,
             "OS ROM hash mismatch for '{}' ({:?})",
             base_name, machine_type
         );
+        if autorun {
+            machine.schedule_basic_autostart(modules);
+        } else if !modules.is_empty() {
+            machine.schedule_modules_preload(modules);
+        }
     } else {
         let program_path = PathBuf::from("tests/assets").join(&program);
 
@@ -130,7 +157,12 @@ fn replay_matches_snapshot(replay_path_str: &str) {
             base_name
         );
 
-        machine.schedule_load(program_data, player.replay.metadata.payload_format, autorun);
+        machine.schedule_load(
+            program_data,
+            player.replay.metadata.payload_format,
+            autorun,
+            modules,
+        );
     }
 
     let update_snapshots = std::env::var("UPDATE_SNAPSHOTS").is_ok();
