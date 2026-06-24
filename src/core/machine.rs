@@ -73,7 +73,7 @@ const KCTAP_MIN_LEN: usize = KCTAP_BLOCK_PREFIX + KCC_HEADER_LEN;
 enum SssStage {
     Launch(usize),
     AwaitMemPrompt(u64),
-    AnswerMem,
+    AnswerMem(usize),
     AwaitMemConsumed,
     AwaitInit {
         last: u32,
@@ -163,12 +163,34 @@ pub enum LoadFormat {
     Sss,
 }
 
+#[derive(Clone)]
+pub struct ModulePreload {
+    pub data: Vec<u8>,
+    pub addr: Option<u16>,
+}
+
+impl ModulePreload {
+    pub fn headered(data: Vec<u8>) -> Self {
+        Self { data, addr: None }
+    }
+
+    pub fn raw(data: Vec<u8>, addr: u16) -> Self {
+        Self {
+            data,
+            addr: Some(addr),
+        }
+    }
+}
+
 struct PendingLoad {
     data: Vec<u8>,
     format: LoadFormat,
     autorun: bool,
     at_cycle: u64,
     stage: SssStage,
+    modules: Vec<ModulePreload>,
+    mem_answer: Vec<u8>,
+    enter_basic_only: bool,
 }
 
 pub struct Machine {
@@ -215,13 +237,80 @@ impl Machine {
         }
     }
 
-    pub fn schedule_load(&mut self, data: Vec<u8>, format: LoadFormat, autorun: bool) {
+    fn mem_answer_for(modules: &[ModulePreload]) -> Vec<u8> {
+        let lowest = modules.iter().filter_map(Self::module_load_addr).min();
+        match lowest {
+            Some(addr) => format!("{}\r", addr.wrapping_sub(1)).into_bytes(),
+            None => vec![KEY_RETURN],
+        }
+    }
+
+    fn module_load_addr(module: &ModulePreload) -> Option<u16> {
+        module.addr.or_else(|| {
+            Self::validate_kctap(&module.data)
+                .or_else(|_| Self::validate_kcc(&module.data))
+                .ok()
+                .map(|(load_addr, _, _)| load_addr)
+        })
+    }
+
+    fn preload_module(&mut self, module: &ModulePreload) {
+        match module.addr {
+            Some(addr) => {
+                for (i, &byte) in module.data.iter().enumerate() {
+                    self.bus.write_memory(addr.wrapping_add(i as u16), byte);
+                }
+            }
+            None => {
+                let _ = self.load_quick(&module.data, false);
+            }
+        }
+    }
+
+    pub fn schedule_load(
+        &mut self,
+        data: Vec<u8>,
+        format: LoadFormat,
+        autorun: bool,
+        modules: Vec<ModulePreload>,
+    ) {
+        let mem_answer = Self::mem_answer_for(&modules);
         self.pending_load = Some(PendingLoad {
             data,
             format,
             autorun,
             at_cycle: self.total_cycles + BOOT_DELAY_CYCLES,
             stage: SssStage::Launch(0),
+            modules,
+            mem_answer,
+            enter_basic_only: false,
+        });
+    }
+
+    pub fn schedule_basic_autostart(&mut self, modules: Vec<ModulePreload>) {
+        let mem_answer = Self::mem_answer_for(&modules);
+        self.pending_load = Some(PendingLoad {
+            data: Vec::new(),
+            format: LoadFormat::Sss,
+            autorun: false,
+            at_cycle: self.total_cycles + BOOT_DELAY_CYCLES,
+            stage: SssStage::Launch(0),
+            modules,
+            mem_answer,
+            enter_basic_only: true,
+        });
+    }
+
+    pub fn schedule_modules_preload(&mut self, modules: Vec<ModulePreload>) {
+        self.pending_load = Some(PendingLoad {
+            data: Vec::new(),
+            format: LoadFormat::Auto,
+            autorun: false,
+            at_cycle: self.total_cycles + BOOT_DELAY_CYCLES,
+            stage: SssStage::Launch(0),
+            modules,
+            mem_answer: vec![KEY_RETURN],
+            enter_basic_only: false,
         });
     }
 
@@ -453,13 +542,26 @@ impl Machine {
             }
             SssStage::AwaitMemPrompt(launched_at) => {
                 if now >= launched_at + BASIC_START_DELAY_CYCLES {
-                    self.set_sss_stage(SssStage::AnswerMem);
+                    self.set_sss_stage(SssStage::AnswerMem(0));
                 }
             }
-            SssStage::AnswerMem => {
+            SssStage::AnswerMem(idx) => {
                 if self.bus.ram[KBD_BUF_FLAG] == 0 {
-                    self.feed_key(KEY_RETURN);
-                    self.set_sss_stage(SssStage::AwaitMemConsumed);
+                    let answer = self
+                        .pending_load
+                        .as_ref()
+                        .map(|p| (p.mem_answer.get(idx).copied(), p.mem_answer.len()));
+                    if let Some((Some(key), len)) = answer {
+                        self.feed_key(key);
+                        let next = idx + 1;
+                        self.set_sss_stage(if next < len {
+                            SssStage::AnswerMem(next)
+                        } else {
+                            SssStage::AwaitMemConsumed
+                        });
+                    } else {
+                        self.set_sss_stage(SssStage::AwaitMemConsumed);
+                    }
                 }
             }
             SssStage::AwaitMemConsumed => {
@@ -485,16 +587,27 @@ impl Machine {
                         changed: true,
                     });
                 } else if changed && stable + 1 >= SCREEN_STABLE_FRAMES {
-                    let prep = self
-                        .pending_load
-                        .as_mut()
-                        .map(|p| (std::mem::take(&mut p.data), p.autorun));
-                    if let Some((data, autorun)) = prep {
-                        let _ = self.load_sss(&data);
-                        if autorun {
-                            self.set_sss_stage(SssStage::Autorun(0));
-                        } else {
+                    let prep = self.pending_load.as_mut().map(|p| {
+                        (
+                            std::mem::take(&mut p.data),
+                            p.autorun,
+                            std::mem::take(&mut p.modules),
+                            p.enter_basic_only,
+                        )
+                    });
+                    if let Some((data, autorun, modules, basic_only)) = prep {
+                        for module in &modules {
+                            self.preload_module(module);
+                        }
+                        if basic_only {
                             self.pending_load = None;
+                        } else {
+                            let _ = self.load_sss(&data);
+                            if autorun {
+                                self.set_sss_stage(SssStage::Autorun(0));
+                            } else {
+                                self.pending_load = None;
+                            }
                         }
                     }
                 } else {
@@ -575,7 +688,12 @@ impl Machine {
             match format {
                 LoadFormat::Auto => {
                     if let Some(pending) = self.pending_load.take() {
-                        let _ = self.load_quick(&pending.data, pending.autorun);
+                        for module in &pending.modules {
+                            self.preload_module(module);
+                        }
+                        if !pending.data.is_empty() {
+                            let _ = self.load_quick(&pending.data, pending.autorun);
+                        }
                     }
                 }
                 LoadFormat::Sss => self.advance_sss_load(now),

@@ -39,6 +39,7 @@ use crate::app::keyboard::{KeyboardLayout, KeyboardTranslator};
 use kc87::core::debug::{ReplayPlayer, ReplayRecorder};
 use kc87::core::machine::{
     CPU_DIVIDER, DEFAULT_FRAME_CYCLES, Hardware, LoadFormat, MASTER_CLOCK_HZ, Machine, MachineType,
+    ModulePreload,
 };
 use kc87::core::peripherals::UserPeripheral;
 use kc87::core::peripherals::keyboard::Key;
@@ -331,6 +332,7 @@ pub struct MachineConfig {
     pub sample_rate: u32,
     pub payload: Option<Vec<u8>>,
     pub payload_format: LoadFormat,
+    pub modules: Vec<ModulePreload>,
     pub autorun: bool,
     pub program_name: String,
     pub midi_enabled: bool,
@@ -353,7 +355,16 @@ impl MachineConfig {
         }
 
         if let Some(payload) = &self.payload {
-            machine.schedule_load(payload.clone(), self.payload_format, self.autorun);
+            machine.schedule_load(
+                payload.clone(),
+                self.payload_format,
+                self.autorun,
+                self.modules.clone(),
+            );
+        } else if self.autorun {
+            machine.schedule_basic_autostart(self.modules.clone());
+        } else if !self.modules.is_empty() {
+            machine.schedule_modules_preload(self.modules.clone());
         }
 
         machine

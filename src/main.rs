@@ -27,8 +27,10 @@ use winit::event_loop::EventLoop;
 use crate::app::audio::AudioSystem;
 use crate::app::keyboard::KeyboardLayout;
 use crate::app::{App, AppConfig, MachineConfig, MidiConn};
-use kc87::core::debug::{ReplayMetadata, ReplayPlayer, ReplayRecorder};
-use kc87::core::machine::{GraphicsModule, Hardware, LoadFormat, MachineType, RamSize};
+use kc87::core::debug::{ReplayMetadata, ReplayModule, ReplayPlayer, ReplayRecorder};
+use kc87::core::machine::{
+    GraphicsModule, Hardware, LoadFormat, MachineType, ModulePreload, RamSize,
+};
 use kc87::core::video::VideoRenderer;
 
 const KC87_OS_ROM: &[u8] = include_bytes!("../firmware/kc87/os.rom");
@@ -293,10 +295,19 @@ struct Args {
     #[arg(
         long,
         value_name = "file",
-        conflicts_with_all = ["kcc", "tap"],
-        help_heading = "General options"
+        help_heading = "General options",
+        verbatim_doc_comment
     )]
     sss: Option<String>,
+
+    /// Path to a raw binary to load at an address, as file@address
+    #[arg(
+        long,
+        value_name = "file@addr",
+        help_heading = "General options",
+        verbatim_doc_comment
+    )]
+    bin: Vec<String>,
 
     /// Path to a ROM module image (.rom) to map at C000h
     #[arg(long, value_name = "file", help_heading = "General options")]
@@ -499,49 +510,68 @@ fn main() -> Result<()> {
         }
     };
 
-    let explicit_program: Option<(String, LoadFormat)> = args
-        .kcc
-        .clone()
-        .map(|p| (p, LoadFormat::Auto))
-        .or_else(|| args.tap.clone().map(|p| (p, LoadFormat::Auto)))
-        .or_else(|| args.sss.clone().map(|p| (p, LoadFormat::Sss)));
-    let (program_path, program_format, rom_path) = match &args.file {
-        Some(file) => {
-            let ext = std::path::Path::new(file)
-                .extension()
-                .and_then(|e| e.to_str())
-                .map(|e| e.to_lowercase());
-            match ext.as_deref() {
-                Some("kcc") | Some("tap") => match explicit_program {
-                    Some((p, fmt)) => (Some(p), fmt, args.rom.clone()),
-                    None => (Some(file.clone()), LoadFormat::Auto, args.rom.clone()),
-                },
-                Some("sss") => match explicit_program {
-                    Some((p, fmt)) => (Some(p), fmt, args.rom.clone()),
-                    None => (Some(file.clone()), LoadFormat::Sss, args.rom.clone()),
-                },
-                Some("rom") => match explicit_program {
-                    Some((p, fmt)) => (
-                        Some(p),
-                        fmt,
-                        args.rom.clone().or_else(|| Some(file.clone())),
-                    ),
-                    None => (
-                        None,
-                        LoadFormat::Auto,
-                        args.rom.clone().or_else(|| Some(file.clone())),
-                    ),
-                },
-                _ => anyhow::bail!(
-                    "unsupported file extension for '{}': only .kcc, .tap, .sss and .rom are allowed",
-                    file
-                ),
+    let mut sss_path = args.sss.clone();
+    let mut module_path = args.kcc.clone().or_else(|| args.tap.clone());
+    let mut rom_path = args.rom.clone();
+
+    if let Some(file) = &args.file {
+        let ext = std::path::Path::new(file)
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_lowercase());
+        match ext.as_deref() {
+            Some("sss") => {
+                if sss_path.is_none() {
+                    sss_path = Some(file.clone());
+                }
             }
+            Some("kcc") | Some("tap") => {
+                if module_path.is_none() {
+                    module_path = Some(file.clone());
+                }
+            }
+            Some("rom") => {
+                if rom_path.is_none() {
+                    rom_path = Some(file.clone());
+                }
+            }
+            _ => anyhow::bail!(
+                "unsupported file extension for '{}': only .kcc, .tap, .sss and .rom are allowed",
+                file
+            ),
         }
-        None => match explicit_program {
-            Some((p, fmt)) => (Some(p), fmt, args.rom.clone()),
-            None => (None, LoadFormat::Auto, args.rom.clone()),
-        },
+    }
+
+    let mut bin_modules: Vec<(u16, String)> = Vec::new();
+    for spec in &args.bin {
+        let (path, addr_str) = spec.rsplit_once('@').with_context(|| {
+            format!(
+                "invalid --bin '{}': expected PATH@ADDRESS (e.g. data.bin@0x2E00)",
+                spec
+            )
+        })?;
+        let addr_str = addr_str.trim();
+        let addr = match addr_str
+            .strip_prefix("0x")
+            .or_else(|| addr_str.strip_prefix("0X"))
+        {
+            Some(hex) => u16::from_str_radix(hex, 16),
+            None => addr_str.parse::<u16>(),
+        }
+        .with_context(|| format!("invalid address in --bin '{}'", spec))?;
+        bin_modules.push((addr, path.to_string()));
+    }
+    let has_bins = !bin_modules.is_empty();
+
+    let (program_path, program_format, driver_module): (
+        Option<String>,
+        LoadFormat,
+        Option<String>,
+    ) = match (sss_path, module_path, has_bins) {
+        (Some(sss), module, _) => (Some(sss), LoadFormat::Sss, module),
+        (None, Some(module), false) => (Some(module), LoadFormat::Auto, None),
+        (None, module, true) => (None, LoadFormat::Auto, module),
+        (None, None, false) => (None, LoadFormat::Auto, None),
     };
 
     let program_format = player
@@ -566,6 +596,35 @@ fn main() -> Result<()> {
     } else {
         (None, String::from("os"), os_rom_hash, String::from("os"))
     };
+
+    let mut modules: Vec<ModulePreload> = Vec::new();
+    let mut replay_modules: Vec<ReplayModule> = Vec::new();
+    if let Some(path) = &driver_module {
+        let data = fs::read(path).with_context(|| format!("could not read module '{}'", path))?;
+        let name = std::path::Path::new(path)
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        replay_modules.push(ReplayModule {
+            name,
+            sha256: hex::encode(Sha256::digest(&data)),
+            addr: None,
+        });
+        modules.push(ModulePreload::headered(data));
+    }
+    for (addr, path) in &bin_modules {
+        let data = fs::read(path).with_context(|| format!("could not read binary '{}'", path))?;
+        let name = std::path::Path::new(path)
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        replay_modules.push(ReplayModule {
+            name,
+            sha256: hex::encode(Sha256::digest(&data)),
+            addr: Some(*addr),
+        });
+        modules.push(ModulePreload::raw(data, *addr));
+    }
 
     let (rom_module, rom_module_name, rom_module_sha256) = if let Some(path) = &rom_path {
         let data =
@@ -616,6 +675,7 @@ fn main() -> Result<()> {
         sample_rate,
         payload,
         payload_format: program_format,
+        modules,
         autorun,
         program_name,
         midi_enabled,
@@ -636,6 +696,7 @@ fn main() -> Result<()> {
             payload_format: program_format,
             rom_module: rom_module_name,
             rom_module_sha256,
+            modules: replay_modules,
         })
     });
 

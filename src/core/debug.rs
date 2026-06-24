@@ -24,6 +24,14 @@ use crate::core::machine::{GraphicsModule, LoadFormat, Machine, MachineType, Ram
 use crate::core::peripherals::keyboard::Key;
 
 #[derive(Serialize, Deserialize)]
+pub struct ReplayModule {
+    pub name: String,
+    pub sha256: String,
+    #[serde(default)]
+    pub addr: Option<u16>,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct ReplayMetadata {
     pub program: String,
     pub program_sha256: String,
@@ -46,6 +54,8 @@ pub struct ReplayMetadata {
     pub rom_module: Option<String>,
     #[serde(default)]
     pub rom_module_sha256: Option<String>,
+    #[serde(default)]
+    pub modules: Vec<ReplayModule>,
 }
 
 #[derive(Serialize, Deserialize)]
