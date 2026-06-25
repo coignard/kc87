@@ -78,7 +78,7 @@ Please note that changes to [u880](https://github.com/coignard/u880) that affect
 
 ## Credits
 
-Thanks to Jens Müller for his JKCEMU source code, which was a reference for the RTC, 80-column mode, PZG, and Robotron/KRT graphics implementations, Andre Weissflog for inspiring this project with his KC 87 emulator, Volker Pohlers for his Z 9001/KC 87 documentation and test programs, and Olga Podivilova for the KC 87 illustration.
+Thanks to Jens Müller for his JKCEMU source code, which was a reference for the RTC, 80-column mode, PZG, and Robotron/KRT graphics implementations, Andre Weissflog for inspiring this project with his KC 87 emulator, Volker Pohlers for his Z 9001/KC 87 documentation and test programs, Filippo Scognamiglio for his cool-retro-term shaders, and Olga Podivilova for the KC 87 illustration.
 
 ## License
 
