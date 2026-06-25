@@ -82,7 +82,7 @@ Thanks to Jens Müller for his JKCEMU source code, which was a reference for the
 
 ## License
 
-The KC 87 source code is © 2026 René Coignard and licensed under the [GNU General Public License v3.0 or later](LICENSE).
+The [KC 87](https://github.com/coignard/kc87) source code is © 2026 René Coignard and licensed under the [GNU General Public License v3.0 or later](LICENSE).
 
 The [KC 87 SDK](https://github.com/coignard/kc87-sdk) source code is © 2026 René Coignard and licensed under the [zlib License](https://github.com/coignard/kc87-sdk/blob/main/LICENSE).
 
