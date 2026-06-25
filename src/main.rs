@@ -26,6 +26,7 @@ use winit::event_loop::EventLoop;
 
 use crate::app::audio::AudioSystem;
 use crate::app::keyboard::KeyboardLayout;
+use crate::app::shaders::Preset;
 use crate::app::{App, AppConfig, MachineConfig, MidiConn};
 use kc87::core::debug::{ReplayMetadata, ReplayModule, ReplayPlayer, ReplayRecorder};
 use kc87::core::machine::{
@@ -352,6 +353,19 @@ struct Args {
         verbatim_doc_comment
     )]
     graphics: Option<GraphicsArg>,
+
+    /// Enable the CRT shader
+    /// Default: built-in profile
+    #[arg(
+        long,
+        value_name = "preset",
+        num_args = 0..=1,
+        require_equals = true,
+        default_missing_value = "@default",
+        help_heading = "Display options",
+        verbatim_doc_comment
+    )]
+    ostalgie: Option<String>,
 
     /// Select keyboard layout
     /// Default: smart
@@ -700,6 +714,18 @@ fn main() -> Result<()> {
         })
     });
 
+    let ostalgie = match args.ostalgie.as_deref() {
+        None => None,
+        Some("@default") => Some(Preset::default_for(machine_type)),
+        Some(path) => {
+            let json = std::fs::read_to_string(path)
+                .with_context(|| format!("Failed to read ostalgie preset '{path}'"))?;
+            let preset = Preset::from_json(&json)
+                .with_context(|| format!("Failed to parse ostalgie preset '{path}'"))?;
+            Some(preset)
+        }
+    };
+
     let mut app = App::new(
         machine_config,
         video,
@@ -710,6 +736,7 @@ fn main() -> Result<()> {
             player,
             midi_out: midi_conn,
             keyboard_layout: args.keyboard_layout.into(),
+            ostalgie,
         },
     );
 
