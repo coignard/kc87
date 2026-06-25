@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+### Added
+
+- `--ostalgie[=<preset>]` enables a CRT display effect ported from cool-retro-term, rendered as a wgpu post-processing pass over the framebuffer.
+- Fullscreen toggle with `F11` or `Alt`+`Enter`.
+
 ## 0.3.2
 
 ### Added
