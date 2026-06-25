@@ -16,8 +16,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub mod audio;
-pub mod shaders;
 pub mod keyboard;
+pub mod shaders;
 
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -35,8 +35,8 @@ use winit::keyboard::{KeyCode, ModifiersState, PhysicalKey};
 use winit::window::{Fullscreen, Window, WindowId};
 
 use crate::app::audio::AudioSystem;
-use crate::app::shaders::{Preset, ShaderRenderer};
 use crate::app::keyboard::{KeyboardLayout, KeyboardTranslator};
+use crate::app::shaders::{Preset, ShaderRenderer};
 
 use kc87::core::debug::{ReplayPlayer, ReplayRecorder};
 use kc87::core::machine::{
@@ -690,9 +690,11 @@ impl ApplicationHandler for App {
             }
             WindowEvent::RedrawRequested => {
                 let render_result = match (&mut self.shader, &self.pixels) {
-                    (Some(shader), Some(pixels)) => pixels.render_with(|encoder, target, context| {
-                        shader.render(encoder, target, context)
-                    }),
+                    (Some(shader), Some(pixels)) => {
+                        pixels.render_with(|encoder, target, context| {
+                            shader.render(encoder, target, context)
+                        })
+                    }
                     (None, Some(pixels)) => pixels.render(),
                     _ => Ok(()),
                 };

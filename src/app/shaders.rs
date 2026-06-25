@@ -126,10 +126,18 @@ impl Preset {
         let fc = hex_rgb(&self.frame_color);
         let fg = hex_rgb(&self.foreground_color);
         let bg = hex_rgb(&self.background_color);
-        let static_frame = [(fc[0] + 0.1).min(1.0), (fc[1] + 0.1).min(1.0), (fc[2] + 0.1).min(1.0)];
+        let static_frame = [
+            (fc[0] + 0.1).min(1.0),
+            (fc[1] + 0.1).min(1.0),
+            (fc[2] + 0.1).min(1.0),
+        ];
         let light = mix3(fg, bg, 0.2);
         let scaled_light = [light[0] * 0.2, light[1] * 0.2, light[2] * 0.2];
-        mix3(scaled_light, static_frame, 0.125 + 0.750 * self.ambient_light)
+        mix3(
+            scaled_light,
+            static_frame,
+            0.125 + 0.750 * self.ambient_light,
+        )
     }
 }
 
@@ -152,7 +160,9 @@ fn mix3(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
 
 fn hex_rgb(s: &str) -> [f32; 3] {
     let t = s.trim().trim_start_matches('#');
-    let ch = |i: usize| u8::from_str_radix(t.get(i..i + 2).unwrap_or("00"), 16).unwrap_or(0) as f32 / 256.0;
+    let ch = |i: usize| {
+        u8::from_str_radix(t.get(i..i + 2).unwrap_or("00"), 16).unwrap_or(0) as f32 / 256.0
+    };
     if t.len() >= 6 {
         [ch(0), ch(2), ch(4)]
     } else {
@@ -324,7 +334,11 @@ impl ShaderRenderer {
 
         let nws = 1024.0 / (0.5 * cwf + 0.5 * chf);
         let curvature = p.screen_curvature * 0.6 * nws;
-        let frame_size = if p.frame_enabled { p.frame_size * nws } else { 0.0 };
+        let frame_size = if p.frame_enabled {
+            p.frame_size * nws
+        } else {
+            0.0
+        };
         let bloom = p.bloom * 2.5;
         let glowing_line = p.glowing_line * 0.2;
         let hsync_strength = lerp(0.05, 0.35, p.horizontal_sync);
@@ -346,47 +360,135 @@ impl ShaderRenderer {
         let frame_on = if p.frame_enabled { 1.0 } else { 0.0 };
 
         let static_params = [
-            curvature, rgb_shift, frame_size, screen_brightness,
-            bloom, p.frame_shininess, DITHER, frame_on,
+            curvature,
+            rgb_shift,
+            frame_size,
+            screen_brightness,
+            bloom,
+            p.frame_shininess,
+            DITHER,
+            frame_on,
         ];
-        context.queue.write_buffer(&gpu.static_buf, 0, &bytes(&static_params));
+        context
+            .queue
+            .write_buffer(&gpu.static_buf, 0, &bytes(&static_params));
 
         let dyn_params = [
-            fbw as f32, fbh as f32, time, curvature,
-            raster_intensity, burn_in_time, p.burn_in, p.static_noise,
-            glowing_line, p.chroma_color, 0.007 * p.jitter, 0.002 * p.jitter,
-            p.horizontal_sync, p.flickering, scale_noise[0], scale_noise[1],
-            bloom, v_brightness, v_dist_scale, v_dist_freq,
-            self.foreground_color[0], self.foreground_color[1], self.foreground_color[2], p.rasterization as f32,
-            self.bg_color[0], self.bg_color[1], self.bg_color[2], frame_size,
-            time, p.jitter, 0.0, 0.0,
+            fbw as f32,
+            fbh as f32,
+            time,
+            curvature,
+            raster_intensity,
+            burn_in_time,
+            p.burn_in,
+            p.static_noise,
+            glowing_line,
+            p.chroma_color,
+            0.007 * p.jitter,
+            0.002 * p.jitter,
+            p.horizontal_sync,
+            p.flickering,
+            scale_noise[0],
+            scale_noise[1],
+            bloom,
+            v_brightness,
+            v_dist_scale,
+            v_dist_freq,
+            self.foreground_color[0],
+            self.foreground_color[1],
+            self.foreground_color[2],
+            p.rasterization as f32,
+            self.bg_color[0],
+            self.bg_color[1],
+            self.bg_color[2],
+            frame_size,
+            time,
+            p.jitter,
+            0.0,
+            0.0,
         ];
-        context.queue.write_buffer(&gpu.dyn_buf, 0, &bytes(&dyn_params));
+        context
+            .queue
+            .write_buffer(&gpu.dyn_buf, 0, &bytes(&dyn_params));
 
         let decay = dt * burn_in_time;
-        context.queue.write_buffer(&gpu.burn_buf, 0, &bytes(&[decay, 0.0, 0.0, 0.0]));
+        context
+            .queue
+            .write_buffer(&gpu.burn_buf, 0, &bytes(&[decay, 0.0, 0.0, 0.0]));
 
         let desaturate = if p.preserve_color { 0.0 } else { 1.0 };
-        context.queue.write_buffer(&gpu.up_buf, 0, &bytes(&[desaturate, 0.0, 0.0, 0.0]));
+        context
+            .queue
+            .write_buffer(&gpu.up_buf, 0, &bytes(&[desaturate, 0.0, 0.0, 0.0]));
 
         let frame_params = [
-            curvature, frame_size, p.screen_radius, p.ambient_light,
-            self.frame_color[0], self.frame_color[1], self.frame_color[2], p.frame_shininess,
-            cwf, chf, frame_on, 0.0,
+            curvature,
+            frame_size,
+            p.screen_radius,
+            p.ambient_light,
+            self.frame_color[0],
+            self.frame_color[1],
+            self.frame_color[2],
+            p.frame_shininess,
+            cwf,
+            chf,
+            frame_on,
+            0.0,
         ];
-        context.queue.write_buffer(&gpu.frame_buf, 0, &bytes(&frame_params));
+        context
+            .queue
+            .write_buffer(&gpu.frame_buf, 0, &bytes(&frame_params));
 
-        pass(encoder, "kc87_shader_upscale", &gpu.screen_view, &gpu.upscale_pipeline, &gpu.upscale_bg);
-        pass(encoder, "kc87_shader_bloom_h", &gpu.bloom_a_view, &gpu.blur_pipeline, &gpu.blur_h_bg);
-        pass(encoder, "kc87_shader_bloom_v", &gpu.bloom_b_view, &gpu.blur_pipeline, &gpu.blur_v_bg);
+        pass(
+            encoder,
+            "kc87_shader_upscale",
+            &gpu.screen_view,
+            &gpu.upscale_pipeline,
+            &gpu.upscale_bg,
+        );
+        pass(
+            encoder,
+            "kc87_shader_bloom_h",
+            &gpu.bloom_a_view,
+            &gpu.blur_pipeline,
+            &gpu.blur_h_bg,
+        );
+        pass(
+            encoder,
+            "kc87_shader_bloom_v",
+            &gpu.bloom_b_view,
+            &gpu.blur_pipeline,
+            &gpu.blur_v_bg,
+        );
         if p.burn_in > 0.0 {
-            pass(encoder, "kc87_shader_burnin", &gpu.burn_views[write], &gpu.burnin_pipeline, &gpu.burnin_bg[read]);
+            pass(
+                encoder,
+                "kc87_shader_burnin",
+                &gpu.burn_views[write],
+                &gpu.burnin_pipeline,
+                &gpu.burnin_bg[read],
+            );
         }
-        pass(encoder, "kc87_shader_static", &gpu.static_view, &gpu.static_pipeline, &gpu.static_bg);
-        pass(encoder, "kc87_shader_frame", &gpu.frame_view, &gpu.frame_pipeline, &gpu.frame_bg);
+        pass(
+            encoder,
+            "kc87_shader_static",
+            &gpu.static_view,
+            &gpu.static_pipeline,
+            &gpu.static_bg,
+        );
+        pass(
+            encoder,
+            "kc87_shader_frame",
+            &gpu.frame_view,
+            &gpu.frame_pipeline,
+            &gpu.frame_bg,
+        );
         pass_viewport(
-            encoder, "kc87_shader_dynamic", render_target,
-            &gpu.dynamic_pipeline, &gpu.dynamic_bg[write],
+            encoder,
+            "kc87_shader_dynamic",
+            render_target,
+            &gpu.dynamic_pipeline,
+            &gpu.dynamic_bg[write],
             (off_x, off_y, cwf, chf),
         );
 
@@ -426,7 +528,13 @@ impl ShaderRenderer {
         let noise = &self.noise;
         let gpu = self.gpu.as_mut().unwrap();
         if !gpu.noise_uploaded {
-            write_texture(&context.queue, &gpu.noise_texture, noise, NOISE_DIM, NOISE_DIM);
+            write_texture(
+                &context.queue,
+                &gpu.noise_texture,
+                noise,
+                NOISE_DIM,
+                NOISE_DIM,
+            );
             gpu.noise_uploaded = true;
         }
         Ok(())
@@ -453,26 +561,53 @@ impl ShaderRenderer {
         gpu.content_size = content;
         gpu.burn_cleared = false;
 
-        context.queue.write_buffer(&gpu.blur_h_buf, 0, &bytes(&[BLOOM_SPREAD / bw as f32, 0.0, 0.0, 0.0]));
-        context.queue.write_buffer(&gpu.blur_v_buf, 0, &bytes(&[0.0, BLOOM_SPREAD / bh as f32, 0.0, 0.0]));
+        context.queue.write_buffer(
+            &gpu.blur_h_buf,
+            0,
+            &bytes(&[BLOOM_SPREAD / bw as f32, 0.0, 0.0, 0.0]),
+        );
+        context.queue.write_buffer(
+            &gpu.blur_v_buf,
+            0,
+            &bytes(&[0.0, BLOOM_SPREAD / bh as f32, 0.0, 0.0]),
+        );
     }
 
     fn rebuild_bind_groups(&mut self, context: &PixelsContext, fb: (u32, u32)) {
         let device = &context.device;
         let gpu = self.gpu.as_mut().unwrap();
-        let fb_view = context.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let fb_view = context
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
         gpu.upscale_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("kc87_shader_upscale_bg"),
             layout: &gpu.upscale_bgl,
             entries: &[tex(0, &fb_view), smp(1, &gpu.lin_smp), buf(2, &gpu.up_buf)],
         });
-        gpu.blur_h_bg = blur_bg(device, &gpu.blur_bgl, &gpu.screen_view, &gpu.lin_smp, &gpu.blur_h_buf);
-        gpu.blur_v_bg = blur_bg(device, &gpu.blur_bgl, &gpu.bloom_a_view, &gpu.lin_smp, &gpu.blur_v_buf);
+        gpu.blur_h_bg = blur_bg(
+            device,
+            &gpu.blur_bgl,
+            &gpu.screen_view,
+            &gpu.lin_smp,
+            &gpu.blur_h_buf,
+        );
+        gpu.blur_v_bg = blur_bg(
+            device,
+            &gpu.blur_bgl,
+            &gpu.bloom_a_view,
+            &gpu.lin_smp,
+            &gpu.blur_v_buf,
+        );
         gpu.static_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("kc87_shader_static_bg"),
             layout: &gpu.static_bgl,
-            entries: &[tex(0, &gpu.screen_view), smp(1, &gpu.lin_smp), tex(2, &gpu.bloom_b_view), buf(3, &gpu.static_buf)],
+            entries: &[
+                tex(0, &gpu.screen_view),
+                smp(1, &gpu.lin_smp),
+                tex(2, &gpu.bloom_b_view),
+                buf(3, &gpu.static_buf),
+            ],
         });
         gpu.frame_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("kc87_shader_frame_bg"),
@@ -483,14 +618,24 @@ impl ShaderRenderer {
             gpu.burnin_bg[i] = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("kc87_shader_burnin_bg"),
                 layout: &gpu.burnin_bgl,
-                entries: &[tex(0, &gpu.screen_view), smp(1, &gpu.lin_smp), tex(2, &gpu.burn_views[i]), buf(3, &gpu.burn_buf)],
+                entries: &[
+                    tex(0, &gpu.screen_view),
+                    smp(1, &gpu.lin_smp),
+                    tex(2, &gpu.burn_views[i]),
+                    buf(3, &gpu.burn_buf),
+                ],
             });
             gpu.dynamic_bg[i] = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("kc87_shader_dynamic_bg"),
                 layout: &gpu.dynamic_bgl,
                 entries: &[
-                    tex(0, &gpu.static_view), smp(1, &gpu.lin_smp), tex(2, &gpu.burn_views[i]),
-                    tex(3, &gpu.noise_view), smp(4, &gpu.noise_smp), tex(5, &gpu.frame_view), buf(6, &gpu.dyn_buf),
+                    tex(0, &gpu.static_view),
+                    smp(1, &gpu.lin_smp),
+                    tex(2, &gpu.burn_views[i]),
+                    tex(3, &gpu.noise_view),
+                    smp(4, &gpu.noise_smp),
+                    tex(5, &gpu.frame_view),
+                    buf(6, &gpu.dyn_buf),
                 ],
             });
         }
@@ -599,10 +744,20 @@ fn pass_viewport(
     rpass.draw(0..3, 0..1);
 }
 
-fn target(device: &wgpu::Device, format: wgpu::TextureFormat, w: u32, h: u32, label: &str) -> wgpu::TextureView {
+fn target(
+    device: &wgpu::Device,
+    format: wgpu::TextureFormat,
+    w: u32,
+    h: u32,
+    label: &str,
+) -> wgpu::TextureView {
     let texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some(label),
-        size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        size: wgpu::Extent3d {
+            width: w,
+            height: h,
+            depth_or_array_layers: 1,
+        },
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
@@ -627,18 +782,31 @@ fn write_texture(queue: &wgpu::Queue, texture: &wgpu::Texture, data: &[u8], w: u
             bytes_per_row: Some(w * 4),
             rows_per_image: Some(h),
         },
-        wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        wgpu::Extent3d {
+            width: w,
+            height: h,
+            depth_or_array_layers: 1,
+        },
     );
 }
 
 fn tex(binding: u32, view: &wgpu::TextureView) -> wgpu::BindGroupEntry<'_> {
-    wgpu::BindGroupEntry { binding, resource: wgpu::BindingResource::TextureView(view) }
+    wgpu::BindGroupEntry {
+        binding,
+        resource: wgpu::BindingResource::TextureView(view),
+    }
 }
 fn smp(binding: u32, sampler: &wgpu::Sampler) -> wgpu::BindGroupEntry<'_> {
-    wgpu::BindGroupEntry { binding, resource: wgpu::BindingResource::Sampler(sampler) }
+    wgpu::BindGroupEntry {
+        binding,
+        resource: wgpu::BindingResource::Sampler(sampler),
+    }
 }
 fn buf(binding: u32, buffer: &wgpu::Buffer) -> wgpu::BindGroupEntry<'_> {
-    wgpu::BindGroupEntry { binding, resource: buffer.as_entire_binding() }
+    wgpu::BindGroupEntry {
+        binding,
+        resource: buffer.as_entire_binding(),
+    }
 }
 
 fn blur_bg(
@@ -742,7 +910,11 @@ fn make_uniform(device: &wgpu::Device, label: &str, size: u64) -> wgpu::Buffer {
 fn data_texture(device: &wgpu::Device, w: u32, h: u32, label: &str) -> wgpu::Texture {
     device.create_texture(&wgpu::TextureDescriptor {
         label: Some(label),
-        size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        size: wgpu::Extent3d {
+            width: w,
+            height: h,
+            depth_or_array_layers: 1,
+        },
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
@@ -770,11 +942,21 @@ fn build_pipelines(device: &wgpu::Device, format: wgpu::TextureFormat) -> Gpu {
     });
     let burnin_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: Some("kc87_shader_burnin_bgl"),
-        entries: &[tex_entry(0), smp_entry(1), tex_entry(2), buf_entry(3, VEC4_BYTES)],
+        entries: &[
+            tex_entry(0),
+            smp_entry(1),
+            tex_entry(2),
+            buf_entry(3, VEC4_BYTES),
+        ],
     });
     let static_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: Some("kc87_shader_static_bgl"),
-        entries: &[tex_entry(0), smp_entry(1), tex_entry(2), buf_entry(3, STATIC_BYTES)],
+        entries: &[
+            tex_entry(0),
+            smp_entry(1),
+            tex_entry(2),
+            buf_entry(3, STATIC_BYTES),
+        ],
     });
     let frame_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: Some("kc87_shader_frame_bgl"),
@@ -783,17 +965,58 @@ fn build_pipelines(device: &wgpu::Device, format: wgpu::TextureFormat) -> Gpu {
     let dynamic_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: Some("kc87_shader_dynamic_bgl"),
         entries: &[
-            tex_entry(0), smp_entry(1), tex_entry(2),
-            tex_entry(3), smp_entry(4), tex_entry(5), buf_entry(6, DYN_BYTES),
+            tex_entry(0),
+            smp_entry(1),
+            tex_entry(2),
+            tex_entry(3),
+            smp_entry(4),
+            tex_entry(5),
+            buf_entry(6, DYN_BYTES),
         ],
     });
 
-    let upscale_pipeline = make_pipeline(device, INTER_FORMAT, &upscale_mod, &upscale_bgl, "kc87_shader_upscale");
-    let blur_pipeline = make_pipeline(device, INTER_FORMAT, &blur_mod, &blur_bgl, "kc87_shader_blur");
-    let burnin_pipeline = make_pipeline(device, INTER_FORMAT, &burnin_mod, &burnin_bgl, "kc87_shader_burnin");
-    let static_pipeline = make_pipeline(device, INTER_FORMAT, &static_mod, &static_bgl, "kc87_shader_static");
-    let frame_pipeline = make_pipeline(device, INTER_FORMAT, &frame_mod, &frame_bgl, "kc87_shader_frame");
-    let dynamic_pipeline = make_pipeline(device, format, &dynamic_mod, &dynamic_bgl, "kc87_shader_dynamic");
+    let upscale_pipeline = make_pipeline(
+        device,
+        INTER_FORMAT,
+        &upscale_mod,
+        &upscale_bgl,
+        "kc87_shader_upscale",
+    );
+    let blur_pipeline = make_pipeline(
+        device,
+        INTER_FORMAT,
+        &blur_mod,
+        &blur_bgl,
+        "kc87_shader_blur",
+    );
+    let burnin_pipeline = make_pipeline(
+        device,
+        INTER_FORMAT,
+        &burnin_mod,
+        &burnin_bgl,
+        "kc87_shader_burnin",
+    );
+    let static_pipeline = make_pipeline(
+        device,
+        INTER_FORMAT,
+        &static_mod,
+        &static_bgl,
+        "kc87_shader_static",
+    );
+    let frame_pipeline = make_pipeline(
+        device,
+        INTER_FORMAT,
+        &frame_mod,
+        &frame_bgl,
+        "kc87_shader_frame",
+    );
+    let dynamic_pipeline = make_pipeline(
+        device,
+        format,
+        &dynamic_mod,
+        &dynamic_bgl,
+        "kc87_shader_dynamic",
+    );
 
     let lin_smp = device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some("kc87_shader_linear"),
@@ -846,26 +1069,45 @@ fn build_pipelines(device: &wgpu::Device, format: wgpu::TextureFormat) -> Gpu {
     let static_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("ph_static"),
         layout: &static_bgl,
-        entries: &[tex(0, &ph()), smp(1, &lin_smp), tex(2, &ph()), buf(3, &static_buf)],
+        entries: &[
+            tex(0, &ph()),
+            smp(1, &lin_smp),
+            tex(2, &ph()),
+            buf(3, &static_buf),
+        ],
     });
     let frame_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("ph_frame"),
         layout: &frame_bgl,
         entries: &[buf(0, &frame_buf)],
     });
-    let burnin_ph = || device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("ph_burnin"),
-        layout: &burnin_bgl,
-        entries: &[tex(0, &ph()), smp(1, &lin_smp), tex(2, &ph()), buf(3, &burn_buf)],
-    });
-    let dynamic_ph = || device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("ph_dynamic"),
-        layout: &dynamic_bgl,
-        entries: &[
-            tex(0, &ph()), smp(1, &lin_smp), tex(2, &ph()),
-            tex(3, &noise_view), smp(4, &noise_smp), tex(5, &ph()), buf(6, &dyn_buf),
-        ],
-    });
+    let burnin_ph = || {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("ph_burnin"),
+            layout: &burnin_bgl,
+            entries: &[
+                tex(0, &ph()),
+                smp(1, &lin_smp),
+                tex(2, &ph()),
+                buf(3, &burn_buf),
+            ],
+        })
+    };
+    let dynamic_ph = || {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("ph_dynamic"),
+            layout: &dynamic_bgl,
+            entries: &[
+                tex(0, &ph()),
+                smp(1, &lin_smp),
+                tex(2, &ph()),
+                tex(3, &noise_view),
+                smp(4, &noise_smp),
+                tex(5, &ph()),
+                buf(6, &dyn_buf),
+            ],
+        })
+    };
     let burnin_bg = [burnin_ph(), burnin_ph()];
     let dynamic_bg = [dynamic_ph(), dynamic_ph()];
 
@@ -877,13 +1119,42 @@ fn build_pipelines(device: &wgpu::Device, format: wgpu::TextureFormat) -> Gpu {
     let frame_view = ph();
 
     Gpu {
-        upscale_pipeline, blur_pipeline, burnin_pipeline, static_pipeline, frame_pipeline, dynamic_pipeline,
-        upscale_bgl, blur_bgl, burnin_bgl, static_bgl, frame_bgl, dynamic_bgl,
-        lin_smp, noise_smp,
-        up_buf, blur_h_buf, blur_v_buf, burn_buf, static_buf, frame_buf, dyn_buf,
-        noise_texture, noise_view,
-        screen_view, bloom_a_view, bloom_b_view, burn_views, static_view, frame_view,
-        upscale_bg, blur_h_bg, blur_v_bg, burnin_bg, static_bg, frame_bg, dynamic_bg,
+        upscale_pipeline,
+        blur_pipeline,
+        burnin_pipeline,
+        static_pipeline,
+        frame_pipeline,
+        dynamic_pipeline,
+        upscale_bgl,
+        blur_bgl,
+        burnin_bgl,
+        static_bgl,
+        frame_bgl,
+        dynamic_bgl,
+        lin_smp,
+        noise_smp,
+        up_buf,
+        blur_h_buf,
+        blur_v_buf,
+        burn_buf,
+        static_buf,
+        frame_buf,
+        dyn_buf,
+        noise_texture,
+        noise_view,
+        screen_view,
+        bloom_a_view,
+        bloom_b_view,
+        burn_views,
+        static_view,
+        frame_view,
+        upscale_bg,
+        blur_h_bg,
+        blur_v_bg,
+        burnin_bg,
+        static_bg,
+        frame_bg,
+        dynamic_bg,
         surface_size: (0, 0),
         content_size: (0, 0),
         fb_size: (0, 0),
