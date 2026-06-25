@@ -87,3 +87,5 @@ The KC 87 source code is © 2026 René Coignard and licensed under the [GNU Gene
 The [KC 87 SDK](https://github.com/coignard/kc87-sdk) source code is © 2026 René Coignard and licensed under the [zlib License](https://github.com/coignard/kc87-sdk/blob/main/LICENSE).
 
 The [flat assembler g](https://github.com/coignard/fasmg) source code is © 2015-2025 Tomasz Grysztar and licensed under the [BSD 3-Clause License](https://github.com/coignard/fasmg/blob/master/core/license.txt).
+
+The [cool-retro-term](https://github.com/Swordfish90/cool-retro-term) shaders are © 2013-2021 Filippo Scognamiglio and licensed under the [GNU General Public License v3.0](https://github.com/Swordfish90/cool-retro-term/blob/master/gpl-3.0.txt).
