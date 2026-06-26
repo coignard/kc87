@@ -1,8 +1,8 @@
 {
-  "frame": 6684672,
-  "pc": 63943,
+  "frame": 40353792,
+  "pc": 63783,
   "bus": {
-    "ram_hash": "d90cee2d2405f5790503180e36d45873ba55f6933d2c6d5238f3eb744c30b678",
+    "ram_hash": "f1e37a4f1a652f3cb83bd8fa58e209faabffb0312f7aad716b9eeaf1d9190eb6",
     "pio1": {
       "ports": [
         {
@@ -35,7 +35,7 @@
         }
       ],
       "reset_active": false,
-      "pins": 18374691015169735110
+      "pins": 18374691015157152038
     },
     "pio2": {
       "ports": [
@@ -55,7 +55,7 @@
         },
         {
           "input": 255,
-          "output": 0,
+          "output": 64,
           "mode": 3,
           "io_select": 255,
           "int_vector": 8,
@@ -69,7 +69,7 @@
         }
       ],
       "reset_active": false,
-      "pins": 18374691015169735110
+      "pins": 18374691015157152038
     },
     "ctc": {
       "chn": [
@@ -102,8 +102,8 @@
         {
           "control": 33,
           "constant": 150,
-          "down_counter": 137,
-          "prescaler": 85,
+          "down_counter": 10,
+          "prescaler": 86,
           "int_vector": 4,
           "trigger_edge": false,
           "waiting_for_trigger": false,
@@ -115,7 +115,7 @@
         {
           "control": 193,
           "constant": 64,
-          "down_counter": 14,
+          "down_counter": 47,
           "prescaler": 0,
           "int_vector": 6,
           "trigger_edge": false,
@@ -126,10 +126,10 @@
           "running": false
         }
       ],
-      "pins": 4535498111430
+      "pins": 4535485528358
     },
     "keyboard": {
-      "cur_time": 2720000,
+      "cur_time": 16420000,
       "sticky_time": 60000,
       "active_columns": 255,
       "active_lines": 0,
@@ -193,8 +193,8 @@
       "cur_scanout_column_mask": 0
     },
     "user_slot": "None",
-    "blink_flip_flop": 0,
-    "blink_counter": 196622,
+    "blink_flip_flop": 128,
+    "blink_counter": 442451,
     "ctc_zcto2": 0,
     "sys_porta": 0,
     "chargen_ram_hash": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",

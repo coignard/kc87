@@ -3,7 +3,7 @@
     "program": "sysinfo.tap",
     "program_sha256": "bee5cf934391d1dac8e67c2858364bee8733dc3f4b43d052e90df45f1f612cef",
     "autorun": true,
-    "sample_rate": 48000,
+    "sample_rate": 44100,
     "machine_type": "KC87",
     "ram": "K64",
     "chargen": false,
@@ -12,51 +12,108 @@
     "rtc": false,
     "payload_format": "auto",
     "rom_module": null,
-    "rom_module_sha256": null
+    "rom_module_sha256": null,
+    "modules": []
   },
   "events": [
     {
-      "frame": 6144000,
+      "frame": 491520,
       "action": {
         "TakeSnapshot": {
-          "name": "sysinfo_frame_6144000"
+          "name": "sysinfo_frame_491520"
         }
       }
     },
     {
-      "frame": 6193152,
+      "frame": 540672,
       "action": {
         "TakeSnapshot": {
-          "name": "sysinfo_frame_6193152"
+          "name": "sysinfo_frame_540672"
         }
       }
     },
     {
-      "frame": 6635520,
+      "frame": 3293184,
       "action": {
         "TakeSnapshot": {
-          "name": "sysinfo_frame_6635520"
+          "name": "sysinfo_frame_3293184"
         }
       }
     },
     {
-      "frame": 6684672,
+      "frame": 3391488,
       "action": {
         "TakeSnapshot": {
-          "name": "sysinfo_frame_6684672"
+          "name": "sysinfo_frame_3391488"
         }
       }
     },
     {
-      "frame": 6733824,
+      "frame": 3440640,
       "action": {
         "TakeSnapshot": {
-          "name": "sysinfo_frame_6733824"
+          "name": "sysinfo_frame_3440640"
         }
       }
     },
     {
-      "frame": 15925248,
+      "frame": 3489792,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_3489792"
+        }
+      }
+    },
+    {
+      "frame": 3981312,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_3981312"
+        }
+      }
+    },
+    {
+      "frame": 5210112,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_5210112"
+        }
+      }
+    },
+    {
+      "frame": 7077888,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_7077888"
+        }
+      }
+    },
+    {
+      "frame": 7127040,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_7127040"
+        }
+      }
+    },
+    {
+      "frame": 7372800,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_7372800"
+        }
+      }
+    },
+    {
+      "frame": 7421952,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_7421952"
+        }
+      }
+    },
+    {
+      "frame": 12140544,
       "action": {
         "KeyDown": {
           "key": "Num1"
@@ -64,7 +121,7 @@
       }
     },
     {
-      "frame": 16121856,
+      "frame": 12337152,
       "action": {
         "KeyUp": {
           "key": "Num1"
@@ -72,7 +129,7 @@
       }
     },
     {
-      "frame": 16957440,
+      "frame": 16269312,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -80,7 +137,7 @@
       }
     },
     {
-      "frame": 17055744,
+      "frame": 16416768,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -88,39 +145,23 @@
       }
     },
     {
-      "frame": 19070976,
+      "frame": 18186240,
       "action": {
         "TakeSnapshot": {
-          "name": "sysinfo_frame_19070976"
+          "name": "sysinfo_frame_18186240"
         }
       }
     },
     {
-      "frame": 19808256,
+      "frame": 20692992,
       "action": {
         "TakeSnapshot": {
-          "name": "sysinfo_frame_19808256"
+          "name": "sysinfo_frame_20692992"
         }
       }
     },
     {
-      "frame": 20004864,
-      "action": {
-        "TakeSnapshot": {
-          "name": "sysinfo_frame_20004864"
-        }
-      }
-    },
-    {
-      "frame": 20054016,
-      "action": {
-        "TakeSnapshot": {
-          "name": "sysinfo_frame_20054016"
-        }
-      }
-    },
-    {
-      "frame": 22069248,
+      "frame": 22462464,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -128,7 +169,7 @@
       }
     },
     {
-      "frame": 22216704,
+      "frame": 22659072,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -136,7 +177,7 @@
       }
     },
     {
-      "frame": 26836992,
+      "frame": 30375936,
       "action": {
         "KeyDown": {
           "key": "Num2"
@@ -144,15 +185,7 @@
       }
     },
     {
-      "frame": 27033600,
-      "action": {
-        "KeyDown": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 27033600,
+      "frame": 30670848,
       "action": {
         "KeyUp": {
           "key": "Num2"
@@ -160,47 +193,7 @@
       }
     },
     {
-      "frame": 27181056,
-      "action": {
-        "KeyUp": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 28655616,
-      "action": {
-        "TakeSnapshot": {
-          "name": "sysinfo_frame_28655616"
-        }
-      }
-    },
-    {
-      "frame": 28901376,
-      "action": {
-        "TakeSnapshot": {
-          "name": "sysinfo_frame_28901376"
-        }
-      }
-    },
-    {
-      "frame": 30867456,
-      "action": {
-        "TakeSnapshot": {
-          "name": "sysinfo_frame_30867456"
-        }
-      }
-    },
-    {
-      "frame": 32833536,
-      "action": {
-        "TakeSnapshot": {
-          "name": "sysinfo_frame_32833536"
-        }
-      }
-    },
-    {
-      "frame": 34062336,
+      "frame": 31408128,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -208,9 +201,33 @@
       }
     },
     {
-      "frame": 34357248,
+      "frame": 31506432,
       "action": {
         "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 33570816,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_33570816"
+        }
+      }
+    },
+    {
+      "frame": 40353792,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_40353792"
+        }
+      }
+    },
+    {
+      "frame": 42074112,
+      "action": {
+        "KeyDown": {
           "key": "Enter"
         }
       }
@@ -218,13 +235,21 @@
     {
       "frame": 42270720,
       "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 49004544,
+      "action": {
         "KeyDown": {
           "key": "Num7"
         }
       }
     },
     {
-      "frame": 42467328,
+      "frame": 49152000,
       "action": {
         "KeyUp": {
           "key": "Num7"
@@ -232,7 +257,7 @@
       }
     },
     {
-      "frame": 43548672,
+      "frame": 50380800,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -240,7 +265,7 @@
       }
     },
     {
-      "frame": 43696128,
+      "frame": 50528256,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -248,15 +273,23 @@
       }
     },
     {
-      "frame": 48513024,
+      "frame": 52543488,
       "action": {
         "TakeSnapshot": {
-          "name": "sysinfo_frame_48513024"
+          "name": "sysinfo_frame_52543488"
         }
       }
     },
     {
-      "frame": 49643520,
+      "frame": 54116352,
+      "action": {
+        "TakeSnapshot": {
+          "name": "sysinfo_frame_54116352"
+        }
+      }
+    },
+    {
+      "frame": 56082432,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -264,7 +297,7 @@
       }
     },
     {
-      "frame": 49840128,
+      "frame": 56279040,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -272,7 +305,7 @@
       }
     },
     {
-      "frame": 55640064,
+      "frame": 60456960,
       "action": {
         "KeyDown": {
           "key": "Num8"
@@ -280,7 +313,7 @@
       }
     },
     {
-      "frame": 55836672,
+      "frame": 60604416,
       "action": {
         "KeyUp": {
           "key": "Num8"
@@ -288,7 +321,7 @@
       }
     },
     {
-      "frame": 57114624,
+      "frame": 61833216,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -296,7 +329,7 @@
       }
     },
     {
-      "frame": 57311232,
+      "frame": 61980672,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -304,15 +337,15 @@
       }
     },
     {
-      "frame": 102334464,
+      "frame": 109166592,
       "action": {
         "TakeSnapshot": {
-          "name": "sysinfo_frame_102334464"
+          "name": "sysinfo_frame_109166592"
         }
       }
     },
     {
-      "frame": 103514112,
+      "frame": 110198784,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -320,50 +353,10 @@
       }
     },
     {
-      "frame": 103612416,
+      "frame": 110346240,
       "action": {
         "KeyUp": {
           "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 108232704,
-      "action": {
-        "KeyDown": {
-          "key": "Num9"
-        }
-      }
-    },
-    {
-      "frame": 108429312,
-      "action": {
-        "KeyUp": {
-          "key": "Num9"
-        }
-      }
-    },
-    {
-      "frame": 109608960,
-      "action": {
-        "KeyDown": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 109707264,
-      "action": {
-        "KeyUp": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 110247936,
-      "action": {
-        "TakeSnapshot": {
-          "name": "sysinfo_frame_110247936"
         }
       }
     }
