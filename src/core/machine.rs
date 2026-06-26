@@ -35,12 +35,13 @@ pub const MAX_FRAME_CYCLES: u32 = DEFAULT_FRAME_CYCLES * 2 + 1;
 pub const FRAME_TIME_US: u32 = 1_000_000 / FRAME_RATE_HZ;
 
 const BOOT_DELAY_CYCLES: u64 = CLOCK_HZ as u64 * 2;
-const BASIC_START_DELAY_CYCLES: u64 = CLOCK_HZ as u64 / 2;
 const KBD_BUF_CHAR: usize = 0x0024;
 const KBD_BUF_FLAG: usize = 0x0025;
 const KEY_RETURN: u8 = 0x0D;
 const SSS_LAUNCH_KEYS: &[u8] = b"BASIC\r";
 const SSS_RUN_KEYS: &[u8] = b"RUN\r";
+const KBD_WAIT_LOOP_BEG: u16 = 0xF924;
+const KBD_WAIT_LOOP_END: u16 = 0xF92A;
 const SCREEN_STABLE_FRAMES: u32 = 8;
 const SSS_HEADER_LEN: usize = 11;
 const SSS_PROG_LEN_FIELD: usize = 2;
@@ -71,8 +72,13 @@ const KCTAP_MIN_LEN: usize = KCTAP_BLOCK_PREFIX + KCC_HEADER_LEN;
 
 #[derive(Clone, Copy)]
 enum SssStage {
+    AwaitBoot,
     Launch(usize),
-    AwaitMemPrompt(u64),
+    AwaitMemPrompt {
+        last: u32,
+        stable: u32,
+        changed: bool,
+    },
     AnswerMem(usize),
     AwaitMemConsumed,
     AwaitInit {
@@ -275,12 +281,16 @@ impl Machine {
         modules: Vec<ModulePreload>,
     ) {
         let mem_answer = Self::mem_answer_for(&modules);
+        let (at_cycle, stage) = match format {
+            LoadFormat::Sss => (self.total_cycles, SssStage::AwaitBoot),
+            LoadFormat::Auto => (self.total_cycles + BOOT_DELAY_CYCLES, SssStage::Launch(0)),
+        };
         self.pending_load = Some(PendingLoad {
             data,
             format,
             autorun,
-            at_cycle: self.total_cycles + BOOT_DELAY_CYCLES,
-            stage: SssStage::Launch(0),
+            at_cycle,
+            stage,
             modules,
             mem_answer,
             enter_basic_only: false,
@@ -293,8 +303,8 @@ impl Machine {
             data: Vec::new(),
             format: LoadFormat::Sss,
             autorun: false,
-            at_cycle: self.total_cycles + BOOT_DELAY_CYCLES,
-            stage: SssStage::Launch(0),
+            at_cycle: self.total_cycles,
+            stage: SssStage::AwaitBoot,
             modules,
             mem_answer,
             enter_basic_only: true,
@@ -518,33 +528,67 @@ impl Machine {
             })
     }
 
+    fn poll_screen_settled(&self, last: u32, stable: u32, changed: bool) -> Option<(u32, u32, bool)> {
+        let now_sum = self.screen_checksum();
+        if now_sum != last {
+            Some((now_sum, 0, true))
+        } else if changed && stable + 1 >= SCREEN_STABLE_FRAMES {
+            None
+        } else {
+            Some((last, stable + 1, changed))
+        }
+    }
+
     fn set_sss_stage(&mut self, stage: SssStage) {
         if let Some(p) = self.pending_load.as_mut() {
             p.stage = stage;
         }
     }
 
-    fn advance_sss_load(&mut self, now: u64) {
+    fn advance_sss_load(&mut self) {
         let Some(stage) = self.pending_load.as_ref().map(|p| p.stage) else {
             return;
         };
         match stage {
+            SssStage::AwaitBoot => {
+                let pc = self.cpu.regs.pc;
+                if (KBD_WAIT_LOOP_BEG..KBD_WAIT_LOOP_END).contains(&pc)
+                    && self.bus.ram[KBD_BUF_FLAG] == 0
+                {
+                    self.feed_key(SSS_LAUNCH_KEYS[0]);
+                    self.set_sss_stage(SssStage::Launch(1));
+                }
+            }
             SssStage::Launch(idx) => {
                 if self.bus.ram[KBD_BUF_FLAG] == 0 {
                     self.feed_key(SSS_LAUNCH_KEYS[idx]);
                     let next = idx + 1;
-                    self.set_sss_stage(if next < SSS_LAUNCH_KEYS.len() {
+                    let stage = if next < SSS_LAUNCH_KEYS.len() {
                         SssStage::Launch(next)
                     } else {
-                        SssStage::AwaitMemPrompt(now)
+                        SssStage::AwaitMemPrompt {
+                            last: self.screen_checksum(),
+                            stable: 0,
+                            changed: false,
+                        }
+                    };
+                    self.set_sss_stage(stage);
+                }
+            }
+            SssStage::AwaitMemPrompt {
+                last,
+                stable,
+                changed,
+            } => match self.poll_screen_settled(last, stable, changed) {
+                Some((last, stable, changed)) => {
+                    self.set_sss_stage(SssStage::AwaitMemPrompt {
+                        last,
+                        stable,
+                        changed,
                     });
                 }
-            }
-            SssStage::AwaitMemPrompt(launched_at) => {
-                if now >= launched_at + BASIC_START_DELAY_CYCLES {
-                    self.set_sss_stage(SssStage::AnswerMem(0));
-                }
-            }
+                None => self.set_sss_stage(SssStage::AnswerMem(0)),
+            },
             SssStage::AnswerMem(idx) => {
                 if self.bus.ram[KBD_BUF_FLAG] == 0 {
                     let answer = self
@@ -578,15 +622,15 @@ impl Machine {
                 last,
                 stable,
                 changed,
-            } => {
-                let now_sum = self.screen_checksum();
-                if now_sum != last {
+            } => match self.poll_screen_settled(last, stable, changed) {
+                Some((last, stable, changed)) => {
                     self.set_sss_stage(SssStage::AwaitInit {
-                        last: now_sum,
-                        stable: 0,
-                        changed: true,
+                        last,
+                        stable,
+                        changed,
                     });
-                } else if changed && stable + 1 >= SCREEN_STABLE_FRAMES {
+                }
+                None => {
                     let prep = self.pending_load.as_mut().map(|p| {
                         (
                             std::mem::take(&mut p.data),
@@ -610,14 +654,8 @@ impl Machine {
                             }
                         }
                     }
-                } else {
-                    self.set_sss_stage(SssStage::AwaitInit {
-                        last,
-                        stable: stable + 1,
-                        changed,
-                    });
                 }
-            }
+            },
             SssStage::Autorun(idx) => {
                 if self.bus.ram[KBD_BUF_FLAG] == 0 {
                     self.feed_key(SSS_RUN_KEYS[idx]);
@@ -687,16 +725,25 @@ impl Machine {
         {
             match format {
                 LoadFormat::Auto => {
-                    if let Some(pending) = self.pending_load.take() {
-                        for module in &pending.modules {
-                            self.preload_module(module);
-                        }
-                        if !pending.data.is_empty() {
-                            let _ = self.load_quick(&pending.data, pending.autorun);
+                    let autorun = self
+                        .pending_load
+                        .as_ref()
+                        .map(|p| p.autorun)
+                        .unwrap_or(false);
+                    let at_safe_point =
+                        (KBD_WAIT_LOOP_BEG..KBD_WAIT_LOOP_END).contains(&self.cpu.regs.pc);
+                    if !autorun || at_safe_point {
+                        if let Some(pending) = self.pending_load.take() {
+                            for module in &pending.modules {
+                                self.preload_module(module);
+                            }
+                            if !pending.data.is_empty() {
+                                let _ = self.load_quick(&pending.data, pending.autorun);
+                            }
                         }
                     }
                 }
-                LoadFormat::Sss => self.advance_sss_load(now),
+                LoadFormat::Sss => self.advance_sss_load(),
             }
         }
 
