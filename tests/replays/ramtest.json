@@ -3,7 +3,7 @@
     "program": "ramtest.tap",
     "program_sha256": "5afd319f4ff547d95300182583ddc141364ce99565a7b02d9080518fd1e4afa3",
     "autorun": true,
-    "sample_rate": 48000,
+    "sample_rate": 44100,
     "machine_type": "Z9001",
     "ram": "Default",
     "chargen": false,
@@ -12,43 +12,36 @@
     "rtc": false,
     "payload_format": "auto",
     "rom_module": null,
-    "rom_module_sha256": null
+    "rom_module_sha256": null,
+    "modules": []
   },
   "events": [
     {
-      "frame": 540672,
+      "frame": 393216,
       "action": {
         "TakeSnapshot": {
-          "name": "ramtest_frame_540672"
+          "name": "ramtest_frame_393216"
         }
       }
     },
     {
-      "frame": 3096576,
+      "frame": 3440640,
       "action": {
         "TakeSnapshot": {
-          "name": "ramtest_frame_3096576"
+          "name": "ramtest_frame_3440640"
         }
       }
     },
     {
-      "frame": 6144000,
+      "frame": 3489792,
       "action": {
         "TakeSnapshot": {
-          "name": "ramtest_frame_6144000"
+          "name": "ramtest_frame_3489792"
         }
       }
     },
     {
-      "frame": 6242304,
-      "action": {
-        "TakeSnapshot": {
-          "name": "ramtest_frame_6242304"
-        }
-      }
-    },
-    {
-      "frame": 7421952,
+      "frame": 7766016,
       "action": {
         "KeyDown": {
           "key": "Num4"
@@ -56,7 +49,7 @@
       }
     },
     {
-      "frame": 7618560,
+      "frame": 8060928,
       "action": {
         "KeyUp": {
           "key": "Num4"
@@ -64,7 +57,7 @@
       }
     },
     {
-      "frame": 7815168,
+      "frame": 8503296,
       "action": {
         "KeyDown": {
           "key": "Num0"
@@ -72,7 +65,7 @@
       }
     },
     {
-      "frame": 7962624,
+      "frame": 8650752,
       "action": {
         "KeyUp": {
           "key": "Num0"
@@ -80,7 +73,7 @@
       }
     },
     {
-      "frame": 8208384,
+      "frame": 8847360,
       "action": {
         "KeyDown": {
           "key": "Num0"
@@ -88,7 +81,7 @@
       }
     },
     {
-      "frame": 8355840,
+      "frame": 8994816,
       "action": {
         "KeyUp": {
           "key": "Num0"
@@ -96,7 +89,7 @@
       }
     },
     {
-      "frame": 8552448,
+      "frame": 9191424,
       "action": {
         "KeyDown": {
           "key": "Num0"
@@ -104,7 +97,7 @@
       }
     },
     {
-      "frame": 8749056,
+      "frame": 9486336,
       "action": {
         "KeyUp": {
           "key": "Num0"
@@ -112,7 +105,7 @@
       }
     },
     {
-      "frame": 9781248,
+      "frame": 9928704,
       "action": {
         "KeyDown": {
           "key": "Num0"
@@ -120,7 +113,7 @@
       }
     },
     {
-      "frame": 10027008,
+      "frame": 10125312,
       "action": {
         "KeyUp": {
           "key": "Num0"
@@ -128,7 +121,23 @@
       }
     },
     {
-      "frame": 10665984,
+      "frame": 10469376,
+      "action": {
+        "KeyDown": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 10715136,
+      "action": {
+        "KeyUp": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 11255808,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -136,7 +145,7 @@
       }
     },
     {
-      "frame": 10862592,
+      "frame": 11452416,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -144,7 +153,7 @@
       }
     },
     {
-      "frame": 12681216,
+      "frame": 12877824,
       "action": {
         "KeyDown": {
           "key": "Num7"
@@ -152,7 +161,7 @@
       }
     },
     {
-      "frame": 12828672,
+      "frame": 12976128,
       "action": {
         "KeyUp": {
           "key": "Num7"
@@ -160,7 +169,7 @@
       }
     },
     {
-      "frame": 13565952,
+      "frame": 13271040,
       "action": {
         "KeyDown": {
           "key": "F"
@@ -168,7 +177,7 @@
       }
     },
     {
-      "frame": 13713408,
+      "frame": 13467648,
       "action": {
         "KeyUp": {
           "key": "F"
@@ -176,7 +185,7 @@
       }
     },
     {
-      "frame": 14057472,
+      "frame": 13811712,
       "action": {
         "KeyDown": {
           "key": "F"
@@ -184,7 +193,7 @@
       }
     },
     {
-      "frame": 14254080,
+      "frame": 13959168,
       "action": {
         "KeyUp": {
           "key": "F"
@@ -192,7 +201,7 @@
       }
     },
     {
-      "frame": 14991360,
+      "frame": 14303232,
       "action": {
         "KeyDown": {
           "key": "F"
@@ -200,7 +209,7 @@
       }
     },
     {
-      "frame": 15187968,
+      "frame": 14548992,
       "action": {
         "KeyUp": {
           "key": "F"
@@ -208,7 +217,7 @@
       }
     },
     {
-      "frame": 15679488,
+      "frame": 15876096,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -216,7 +225,7 @@
       }
     },
     {
-      "frame": 15974400,
+      "frame": 16072704,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -224,26 +233,10 @@
       }
     },
     {
-      "frame": 17301504,
+      "frame": 18038784,
       "action": {
         "KeyDown": {
           "key": "Num4"
-        }
-      }
-    },
-    {
-      "frame": 17596416,
-      "action": {
-        "KeyUp": {
-          "key": "Num4"
-        }
-      }
-    },
-    {
-      "frame": 18137088,
-      "action": {
-        "KeyDown": {
-          "key": "Num0"
         }
       }
     },
@@ -251,12 +244,12 @@
       "frame": 18333696,
       "action": {
         "KeyUp": {
-          "key": "Num0"
+          "key": "Num4"
         }
       }
     },
     {
-      "frame": 18726912,
+      "frame": 18628608,
       "action": {
         "KeyDown": {
           "key": "Num0"
@@ -264,7 +257,7 @@
       }
     },
     {
-      "frame": 18923520,
+      "frame": 18776064,
       "action": {
         "KeyUp": {
           "key": "Num0"
@@ -272,7 +265,23 @@
       }
     },
     {
-      "frame": 21970944,
+      "frame": 19120128,
+      "action": {
+        "KeyDown": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 19316736,
+      "action": {
+        "KeyUp": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 20742144,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -280,7 +289,7 @@
       }
     },
     {
-      "frame": 22167552,
+      "frame": 20938752,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -288,15 +297,7 @@
       }
     },
     {
-      "frame": 22757376,
-      "action": {
-        "TakeSnapshot": {
-          "name": "ramtest_frame_22757376"
-        }
-      }
-    },
-    {
-      "frame": 23937024,
+      "frame": 22904832,
       "action": {
         "KeyDown": {
           "key": "J"
@@ -304,7 +305,7 @@
       }
     },
     {
-      "frame": 24084480,
+      "frame": 23101440,
       "action": {
         "KeyUp": {
           "key": "J"
@@ -312,9 +313,33 @@
       }
     },
     {
-      "frame": 24870912,
+      "frame": 23592960,
       "action": {
         "KeyDown": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 23789568,
+      "action": {
+        "KeyUp": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 24281088,
+      "action": {
+        "KeyDown": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 24477696,
+      "action": {
+        "KeyUp": {
           "key": "J"
         }
       }
@@ -322,21 +347,13 @@
     {
       "frame": 25018368,
       "action": {
-        "KeyUp": {
-          "key": "J"
-        }
-      }
-    },
-    {
-      "frame": 25411584,
-      "action": {
         "KeyDown": {
           "key": "J"
         }
       }
     },
     {
-      "frame": 25608192,
+      "frame": 25165824,
       "action": {
         "KeyUp": {
           "key": "J"
@@ -344,7 +361,7 @@
       }
     },
     {
-      "frame": 25952256,
+      "frame": 25755648,
       "action": {
         "KeyDown": {
           "key": "J"
@@ -352,17 +369,9 @@
       }
     },
     {
-      "frame": 26198016,
+      "frame": 26001408,
       "action": {
         "KeyUp": {
-          "key": "J"
-        }
-      }
-    },
-    {
-      "frame": 26935296,
-      "action": {
-        "KeyDown": {
           "key": "J"
         }
       }
@@ -370,13 +379,21 @@
     {
       "frame": 27131904,
       "action": {
+        "KeyDown": {
+          "key": "J"
+        }
+      }
+    },
+    {
+      "frame": 27279360,
+      "action": {
         "KeyUp": {
           "key": "J"
         }
       }
     },
     {
-      "frame": 28065792,
+      "frame": 31211520,
       "action": {
         "KeyDown": {
           "key": "J"
@@ -384,7 +401,7 @@
       }
     },
     {
-      "frame": 28213248,
+      "frame": 31358976,
       "action": {
         "KeyUp": {
           "key": "J"
@@ -392,58 +409,66 @@
       }
     },
     {
-      "frame": 30916608,
+      "frame": 33521664,
       "action": {
         "TakeSnapshot": {
-          "name": "ramtest_frame_30916608"
+          "name": "ramtest_frame_33521664"
         }
       }
     },
     {
-      "frame": 33570816,
-      "action": {
-        "KeyDown": {
-          "key": "J"
-        }
-      }
-    },
-    {
-      "frame": 33767424,
-      "action": {
-        "KeyUp": {
-          "key": "J"
-        }
-      }
-    },
-    {
-      "frame": 36421632,
+      "frame": 34308096,
       "action": {
         "TakeSnapshot": {
-          "name": "ramtest_frame_36421632"
+          "name": "ramtest_frame_34308096"
         }
       }
     },
     {
-      "frame": 1390903296,
+      "frame": 55541760,
       "action": {
         "TakeSnapshot": {
-          "name": "ramtest_frame_1390903296"
+          "name": "ramtest_frame_55541760"
         }
       }
     },
     {
-      "frame": 1397047296,
+      "frame": 87048192,
       "action": {
         "TakeSnapshot": {
-          "name": "ramtest_frame_1397047296"
+          "name": "ramtest_frame_87048192"
         }
       }
     },
     {
-      "frame": 1405845504,
+      "frame": 119832576,
       "action": {
         "TakeSnapshot": {
-          "name": "ramtest_frame_1405845504"
+          "name": "ramtest_frame_119832576"
+        }
+      }
+    },
+    {
+      "frame": 137773056,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ramtest_frame_137773056"
+        }
+      }
+    },
+    {
+      "frame": 301203456,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ramtest_frame_301203456"
+        }
+      }
+    },
+    {
+      "frame": 307691520,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ramtest_frame_307691520"
         }
       }
     }
