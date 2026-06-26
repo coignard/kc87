@@ -3,7 +3,7 @@
     "program": "fckafd.kcc",
     "program_sha256": "238452cddaf50a42a4f24fca021a76ae9877ed3c8039629e0579107402e1821d",
     "autorun": true,
-    "sample_rate": 48000,
+    "sample_rate": 44100,
     "machine_type": "KC87",
     "ram": "Default",
     "chargen": false,
@@ -12,38 +12,55 @@
     "rtc": false,
     "payload_format": "auto",
     "rom_module": null,
-    "rom_module_sha256": null
+    "rom_module_sha256": null,
+    "modules": []
   },
   "events": [
     {
-      "frame": 4964352,
+      "frame": 5259264,
       "action": {
         "TakeSnapshot": {
-          "name": "fckafd_frame_4964352"
+          "name": "fckafd_frame_5259264"
         }
       }
     },
     {
-      "frame": 5013504,
+      "frame": 5308416,
       "action": {
         "TakeSnapshot": {
-          "name": "fckafd_frame_5013504"
+          "name": "fckafd_frame_5308416"
         }
       }
     },
     {
-      "frame": 5062656,
+      "frame": 5357568,
       "action": {
         "TakeSnapshot": {
-          "name": "fckafd_frame_5062656"
+          "name": "fckafd_frame_5357568"
         }
       }
     },
     {
-      "frame": 5111808,
+      "frame": 5406720,
       "action": {
         "TakeSnapshot": {
-          "name": "fckafd_frame_5111808"
+          "name": "fckafd_frame_5406720"
+        }
+      }
+    },
+    {
+      "frame": 5455872,
+      "action": {
+        "TakeSnapshot": {
+          "name": "fckafd_frame_5455872"
+        }
+      }
+    },
+    {
+      "frame": 5505024,
+      "action": {
+        "TakeSnapshot": {
+          "name": "fckafd_frame_5505024"
         }
       }
     }
