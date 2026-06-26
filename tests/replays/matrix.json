@@ -3,7 +3,7 @@
     "program": "matrix.kcc",
     "program_sha256": "bb672317a604a560ea33f843031793afe68eec6d5a995e209177d55939a2c7b6",
     "autorun": true,
-    "sample_rate": 48000,
+    "sample_rate": 44100,
     "machine_type": "KC87",
     "ram": "Default",
     "chargen": false,
@@ -12,94 +12,127 @@
     "rtc": false,
     "payload_format": "auto",
     "rom_module": null,
-    "rom_module_sha256": null
+    "rom_module_sha256": null,
+    "modules": []
   },
   "events": [
     {
-      "frame": 4964352,
+      "frame": 13713408,
       "action": {
         "TakeSnapshot": {
-          "name": "matrix_frame_4964352"
+          "name": "matrix_frame_13713408"
         }
       }
     },
     {
-      "frame": 13369344,
+      "frame": 27131904,
       "action": {
         "TakeSnapshot": {
-          "name": "matrix_frame_13369344"
+          "name": "matrix_frame_27131904"
         }
       }
     },
     {
-      "frame": 26836992,
+      "frame": 34258944,
       "action": {
         "TakeSnapshot": {
-          "name": "matrix_frame_26836992"
+          "name": "matrix_frame_34258944"
         }
       }
     },
     {
-      "frame": 33914880,
+      "frame": 41484288,
       "action": {
         "TakeSnapshot": {
-          "name": "matrix_frame_33914880"
+          "name": "matrix_frame_41484288"
         }
       }
     },
     {
-      "frame": 41140224,
+      "frame": 58441728,
       "action": {
         "TakeSnapshot": {
-          "name": "matrix_frame_41140224"
+          "name": "matrix_frame_58441728"
         }
       }
     },
     {
-      "frame": 58097664,
+      "frame": 76677120,
       "action": {
         "TakeSnapshot": {
-          "name": "matrix_frame_58097664"
+          "name": "matrix_frame_76677120"
         }
       }
     },
     {
-      "frame": 76333056,
+      "frame": 80068608,
       "action": {
         "TakeSnapshot": {
-          "name": "matrix_frame_76333056"
+          "name": "matrix_frame_80068608"
         }
       }
     },
     {
-      "frame": 83214336,
+      "frame": 82575360,
       "action": {
         "TakeSnapshot": {
-          "name": "matrix_frame_83214336"
+          "name": "matrix_frame_82575360"
         }
       }
     },
     {
-      "frame": 92307456,
+      "frame": 89948160,
       "action": {
         "TakeSnapshot": {
-          "name": "matrix_frame_92307456"
+          "name": "matrix_frame_89948160"
         }
       }
     },
     {
-      "frame": 99188736,
+      "frame": 92651520,
       "action": {
         "TakeSnapshot": {
-          "name": "matrix_frame_99188736"
+          "name": "matrix_frame_92651520"
         }
       }
     },
     {
-      "frame": 292503552,
+      "frame": 92700672,
       "action": {
         "TakeSnapshot": {
-          "name": "matrix_frame_292503552"
+          "name": "matrix_frame_92700672"
+        }
+      }
+    },
+    {
+      "frame": 93929472,
+      "action": {
+        "TakeSnapshot": {
+          "name": "matrix_frame_93929472"
+        }
+      }
+    },
+    {
+      "frame": 93978624,
+      "action": {
+        "TakeSnapshot": {
+          "name": "matrix_frame_93978624"
+        }
+      }
+    },
+    {
+      "frame": 99631104,
+      "action": {
+        "TakeSnapshot": {
+          "name": "matrix_frame_99631104"
+        }
+      }
+    },
+    {
+      "frame": 168394752,
+      "action": {
+        "TakeSnapshot": {
+          "name": "matrix_frame_168394752"
         }
       }
     }
