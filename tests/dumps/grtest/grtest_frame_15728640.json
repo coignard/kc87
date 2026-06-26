@@ -1,8 +1,8 @@
 {
-  "frame": 36323328,
-  "pc": 62193,
+  "frame": 15728640,
+  "pc": 4482,
   "bus": {
-    "ram_hash": "edc19921e3b025060afb317f85039c9e77bef97c5d77115da3eca4abaf02e02f",
+    "ram_hash": "66fa74bd05a3278569998af4bbfae6488218d252a9504d54c907598c85c2b568",
     "pio1": {
       "ports": [
         {
@@ -35,7 +35,7 @@
         }
       ],
       "reset_active": false,
-      "pins": 18374686617310589680
+      "pins": 18374693214349639679
     },
     "pio2": {
       "ports": [
@@ -69,7 +69,7 @@
         }
       ],
       "reset_active": false,
-      "pins": 18374686617310589680
+      "pins": 18374693214349639679
     },
     "ctc": {
       "chn": [
@@ -102,8 +102,8 @@
         {
           "control": 33,
           "constant": 150,
-          "down_counter": 56,
-          "prescaler": 189,
+          "down_counter": 141,
+          "prescaler": 122,
           "int_vector": 4,
           "trigger_edge": false,
           "waiting_for_trigger": false,
@@ -115,7 +115,7 @@
         {
           "control": 193,
           "constant": 64,
-          "down_counter": 15,
+          "down_counter": 47,
           "prescaler": 0,
           "int_vector": 6,
           "trigger_edge": false,
@@ -126,10 +126,10 @@
           "running": false
         }
       ],
-      "pins": 137638966000
+      "pins": 6734678015999
     },
     "keyboard": {
-      "cur_time": 14780000,
+      "cur_time": 6400000,
       "sticky_time": 60000,
       "active_columns": 255,
       "active_lines": 0,
@@ -194,7 +194,7 @@
     },
     "user_slot": "None",
     "blink_flip_flop": 0,
-    "blink_counter": 49226,
+    "blink_counter": 32,
     "ctc_zcto2": 0,
     "sys_porta": 0,
     "chargen_ram_hash": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
@@ -203,13 +203,13 @@
     "ram_ext_hash": "4fe7b59af6de3b665b67788cc2f99892ab827efae3a467342b3bb4e3bc8e5bfe",
     "ram_4000_seg1": false,
     "ram_c000": false,
-    "ram_pixel_hash": "23faa3d2e1c112df2e3a2f84698c3da8f72a676f0105e0a163dc4cf90532ac43",
+    "ram_pixel_hash": "3b7fe6b3d9b20cd699c2e6cdcddfb88d05d380131dc58b37a159e1189915c3e5",
     "graph_mode": true,
-    "graph_fg": 4,
-    "graph_bg": 1,
+    "graph_fg": 1,
+    "graph_bg": 0,
     "graph_border": true,
     "graph_bank": 0,
-    "graph_addr_l": 84,
+    "graph_addr_l": 49,
     "ram_video2_hash": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
     "ram_color2_hash": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
     "c80_active": false,
