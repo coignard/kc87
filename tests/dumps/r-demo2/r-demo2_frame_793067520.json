@@ -1,13 +1,13 @@
 {
-  "frame": 810516480,
-  "pc": 58320,
+  "frame": 793067520,
+  "pc": 58324,
   "bus": {
-    "ram_hash": "0c212126738a025bb76d78a612b4f1fb9f7324fedbf9d1f2af84471f288f27a5",
+    "ram_hash": "0bf35048cf4f3251be55b9f4389b8a9dd93983ce10a6f359d0ca888cbf4108c8",
     "pio1": {
       "ports": [
         {
           "input": 0,
-          "output": 4,
+          "output": 56,
           "mode": 3,
           "io_select": 0,
           "int_vector": 0,
@@ -35,7 +35,7 @@
         }
       ],
       "reset_active": false,
-      "pins": 18375819114087637967
+      "pins": 18390455812876198867
     },
     "pio2": {
       "ports": [
@@ -69,7 +69,7 @@
         }
       ],
       "reset_active": false,
-      "pins": 18374693214180795343
+      "pins": 18374693214180402131
     },
     "ctc": {
       "chn": [
@@ -102,8 +102,8 @@
         {
           "control": 33,
           "constant": 150,
-          "down_counter": 15,
-          "prescaler": 113,
+          "down_counter": 33,
+          "prescaler": 42,
           "int_vector": 4,
           "trigger_edge": false,
           "waiting_for_trigger": false,
@@ -115,7 +115,7 @@
         {
           "control": 193,
           "constant": 64,
-          "down_counter": 18,
+          "down_counter": 36,
           "prescaler": 0,
           "int_vector": 6,
           "trigger_edge": false,
@@ -126,10 +126,10 @@
           "running": false
         }
       ],
-      "pins": 6734509171663
+      "pins": 6734508778451
     },
     "keyboard": {
-      "cur_time": 329800000,
+      "cur_time": 322700000,
       "sticky_time": 60000,
       "active_columns": 255,
       "active_lines": 0,
@@ -193,10 +193,10 @@
       "cur_scanout_column_mask": 0
     },
     "user_slot": "None",
-    "blink_flip_flop": 128,
-    "blink_counter": 1649,
+    "blink_flip_flop": 0,
+    "blink_counter": 247374,
     "ctc_zcto2": 0,
-    "sys_porta": 4,
+    "sys_porta": 56,
     "chargen_ram_hash": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
     "chargen_window": false,
     "chargen_active": false,

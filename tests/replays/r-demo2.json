@@ -3,7 +3,7 @@
     "program": "r-demo2.sss",
     "program_sha256": "f16ff05a442d3fe6647a86f7f1b00237358d0a8ca2496b91ae1b7ed8fb25bf3e",
     "autorun": true,
-    "sample_rate": 48000,
+    "sample_rate": 44100,
     "machine_type": "KC87",
     "ram": "Default",
     "chargen": false,
@@ -12,11 +12,12 @@
     "rtc": false,
     "payload_format": "sss",
     "rom_module": null,
-    "rom_module_sha256": null
+    "rom_module_sha256": null,
+    "modules": []
   },
   "events": [
     {
-      "frame": 27279360,
+      "frame": 17940480,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -24,7 +25,7 @@
       }
     },
     {
-      "frame": 27574272,
+      "frame": 18087936,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -32,7 +33,7 @@
       }
     },
     {
-      "frame": 57556992,
+      "frame": 42614784,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -40,7 +41,7 @@
       }
     },
     {
-      "frame": 57851904,
+      "frame": 42860544,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -48,47 +49,15 @@
       }
     },
     {
-      "frame": 79626240,
-      "action": {
-        "KeyDown": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 79872000,
-      "action": {
-        "KeyUp": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 98697216,
-      "action": {
-        "KeyDown": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 98942976,
-      "action": {
-        "KeyUp": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 117424128,
+      "frame": 49496064,
       "action": {
         "TakeSnapshot": {
-          "name": "r-demo2_frame_117424128"
+          "name": "r-demo2_frame_49496064"
         }
       }
     },
     {
-      "frame": 143966208,
+      "frame": 56082432,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -96,7 +65,7 @@
       }
     },
     {
-      "frame": 144261120,
+      "frame": 56328192,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -104,31 +73,15 @@
       }
     },
     {
-      "frame": 216711168,
-      "action": {
-        "KeyDown": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 217055232,
-      "action": {
-        "KeyUp": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 253624320,
+      "frame": 61587456,
       "action": {
         "TakeSnapshot": {
-          "name": "r-demo2_frame_253624320"
+          "name": "r-demo2_frame_61587456"
         }
       }
     },
     {
-      "frame": 263405568,
+      "frame": 62619648,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -136,7 +89,7 @@
       }
     },
     {
-      "frame": 263602176,
+      "frame": 62865408,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -144,31 +97,15 @@
       }
     },
     {
-      "frame": 340328448,
-      "action": {
-        "KeyDown": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 340623360,
-      "action": {
-        "KeyUp": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 394543104,
+      "frame": 96239616,
       "action": {
         "TakeSnapshot": {
-          "name": "r-demo2_frame_394543104"
+          "name": "r-demo2_frame_96239616"
         }
       }
     },
     {
-      "frame": 395870208,
+      "frame": 98156544,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -176,7 +113,7 @@
       }
     },
     {
-      "frame": 396214272,
+      "frame": 98549760,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -184,15 +121,15 @@
       }
     },
     {
-      "frame": 407371776,
+      "frame": 134774784,
       "action": {
         "TakeSnapshot": {
-          "name": "r-demo2_frame_407371776"
+          "name": "r-demo2_frame_134774784"
         }
       }
     },
     {
-      "frame": 408010752,
+      "frame": 140722176,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -200,7 +137,7 @@
       }
     },
     {
-      "frame": 408256512,
+      "frame": 141066240,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -208,7 +145,7 @@
       }
     },
     {
-      "frame": 465518592,
+      "frame": 281100288,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -216,7 +153,7 @@
       }
     },
     {
-      "frame": 465813504,
+      "frame": 281296896,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -224,23 +161,15 @@
       }
     },
     {
-      "frame": 483508224,
+      "frame": 313540608,
       "action": {
         "TakeSnapshot": {
-          "name": "r-demo2_frame_483508224"
+          "name": "r-demo2_frame_313540608"
         }
       }
     },
     {
-      "frame": 549470208,
-      "action": {
-        "TakeSnapshot": {
-          "name": "r-demo2_frame_549470208"
-        }
-      }
-    },
-    {
-      "frame": 576749568,
+      "frame": 319586304,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -248,7 +177,7 @@
       }
     },
     {
-      "frame": 576995328,
+      "frame": 319832064,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -256,7 +185,15 @@
       }
     },
     {
-      "frame": 597590016,
+      "frame": 368738304,
+      "action": {
+        "TakeSnapshot": {
+          "name": "r-demo2_frame_368738304"
+        }
+      }
+    },
+    {
+      "frame": 370114560,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -264,7 +201,7 @@
       }
     },
     {
-      "frame": 597884928,
+      "frame": 370458624,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -272,15 +209,15 @@
       }
     },
     {
-      "frame": 604667904,
+      "frame": 401031168,
       "action": {
         "TakeSnapshot": {
-          "name": "r-demo2_frame_604667904"
+          "name": "r-demo2_frame_401031168"
         }
       }
     },
     {
-      "frame": 682328064,
+      "frame": 402702336,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -288,7 +225,7 @@
       }
     },
     {
-      "frame": 682573824,
+      "frame": 402997248,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -296,31 +233,15 @@
       }
     },
     {
-      "frame": 686997504,
+      "frame": 421527552,
       "action": {
         "TakeSnapshot": {
-          "name": "r-demo2_frame_686997504"
+          "name": "r-demo2_frame_421527552"
         }
       }
     },
     {
-      "frame": 739393536,
-      "action": {
-        "TakeSnapshot": {
-          "name": "r-demo2_frame_739393536"
-        }
-      }
-    },
-    {
-      "frame": 762839040,
-      "action": {
-        "TakeSnapshot": {
-          "name": "r-demo2_frame_762839040"
-        }
-      }
-    },
-    {
-      "frame": 804913152,
+      "frame": 422903808,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -328,7 +249,7 @@
       }
     },
     {
-      "frame": 805257216,
+      "frame": 423149568,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -336,15 +257,15 @@
       }
     },
     {
-      "frame": 810516480,
+      "frame": 489750528,
       "action": {
         "TakeSnapshot": {
-          "name": "r-demo2_frame_810516480"
+          "name": "r-demo2_frame_489750528"
         }
       }
     },
     {
-      "frame": 811450368,
+      "frame": 490831872,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -352,7 +273,7 @@
       }
     },
     {
-      "frame": 811745280,
+      "frame": 490979328,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -360,15 +281,15 @@
       }
     },
     {
-      "frame": 844382208,
+      "frame": 519684096,
       "action": {
         "TakeSnapshot": {
-          "name": "r-demo2_frame_844382208"
+          "name": "r-demo2_frame_519684096"
         }
       }
     },
     {
-      "frame": 845512704,
+      "frame": 520568832,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -376,7 +297,7 @@
       }
     },
     {
-      "frame": 845856768,
+      "frame": 520863744,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -384,7 +305,31 @@
       }
     },
     {
-      "frame": 871858176,
+      "frame": 531038208,
+      "action": {
+        "TakeSnapshot": {
+          "name": "r-demo2_frame_531038208"
+        }
+      }
+    },
+    {
+      "frame": 548536320,
+      "action": {
+        "TakeSnapshot": {
+          "name": "r-demo2_frame_548536320"
+        }
+      }
+    },
+    {
+      "frame": 551190528,
+      "action": {
+        "TakeSnapshot": {
+          "name": "r-demo2_frame_551190528"
+        }
+      }
+    },
+    {
+      "frame": 554237952,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -392,7 +337,7 @@
       }
     },
     {
-      "frame": 872153088,
+      "frame": 554532864,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -400,10 +345,234 @@
       }
     },
     {
-      "frame": 876625920,
+      "frame": 596213760,
       "action": {
         "TakeSnapshot": {
-          "name": "r-demo2_frame_876625920"
+          "name": "r-demo2_frame_596213760"
+        }
+      }
+    },
+    {
+      "frame": 670531584,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 670777344,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 675840000,
+      "action": {
+        "TakeSnapshot": {
+          "name": "r-demo2_frame_675840000"
+        }
+      }
+    },
+    {
+      "frame": 682819584,
+      "action": {
+        "TakeSnapshot": {
+          "name": "r-demo2_frame_682819584"
+        }
+      }
+    },
+    {
+      "frame": 687439872,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 687685632,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 744898560,
+      "action": {
+        "TakeSnapshot": {
+          "name": "r-demo2_frame_744898560"
+        }
+      }
+    },
+    {
+      "frame": 747405312,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 747651072,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 774144000,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 774438912,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 793067520,
+      "action": {
+        "TakeSnapshot": {
+          "name": "r-demo2_frame_793067520"
+        }
+      }
+    },
+    {
+      "frame": 793657344,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 793903104,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 829931520,
+      "action": {
+        "TakeSnapshot": {
+          "name": "r-demo2_frame_829931520"
+        }
+      }
+    },
+    {
+      "frame": 843448320,
+      "action": {
+        "TakeSnapshot": {
+          "name": "r-demo2_frame_843448320"
+        }
+      }
+    },
+    {
+      "frame": 858095616,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 858390528,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 862863360,
+      "action": {
+        "TakeSnapshot": {
+          "name": "r-demo2_frame_862863360"
+        }
+      }
+    },
+    {
+      "frame": 864141312,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 864387072,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 899923968,
+      "action": {
+        "TakeSnapshot": {
+          "name": "r-demo2_frame_899923968"
+        }
+      }
+    },
+    {
+      "frame": 907247616,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 907591680,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 914030592,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 914227200,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 934576128,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 934920192,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
         }
       }
     }
