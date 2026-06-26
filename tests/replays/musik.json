@@ -3,7 +3,7 @@
     "program": "musik.tap",
     "program_sha256": "b45209c651a996ee0d5a0b4404eb4a2382e0f12cf11815d4c82c306a4e04511c",
     "autorun": true,
-    "sample_rate": 48000,
+    "sample_rate": 44100,
     "machine_type": "KC87",
     "ram": "Default",
     "chargen": false,
@@ -12,27 +12,36 @@
     "rtc": false,
     "payload_format": "auto",
     "rom_module": null,
-    "rom_module_sha256": null
+    "rom_module_sha256": null,
+    "modules": []
   },
   "events": [
     {
-      "frame": 5455872,
+      "frame": 5259264,
       "action": {
         "TakeSnapshot": {
-          "name": "musik_frame_5455872"
+          "name": "musik_frame_5259264"
         }
       }
     },
     {
-      "frame": 5849088,
+      "frame": 6144000,
       "action": {
         "TakeSnapshot": {
-          "name": "musik_frame_5849088"
+          "name": "musik_frame_6144000"
         }
       }
     },
     {
-      "frame": 8601600,
+      "frame": 6193152,
+      "action": {
+        "TakeSnapshot": {
+          "name": "musik_frame_6193152"
+        }
+      }
+    },
+    {
+      "frame": 8699904,
       "action": {
         "KeyDown": {
           "key": "J"
@@ -40,7 +49,7 @@
       }
     },
     {
-      "frame": 8798208,
+      "frame": 8896512,
       "action": {
         "KeyUp": {
           "key": "J"
@@ -48,15 +57,7 @@
       }
     },
     {
-      "frame": 10076160,
-      "action": {
-        "TakeSnapshot": {
-          "name": "musik_frame_10076160"
-        }
-      }
-    },
-    {
-      "frame": 12582912,
+      "frame": 12828672,
       "action": {
         "KeyDown": {
           "key": "Num2"
@@ -64,7 +65,7 @@
       }
     },
     {
-      "frame": 12779520,
+      "frame": 13074432,
       "action": {
         "KeyUp": {
           "key": "Num2"
@@ -72,26 +73,18 @@
       }
     },
     {
-      "frame": 14794752,
+      "frame": 42418176,
       "action": {
         "TakeSnapshot": {
-          "name": "musik_frame_14794752"
+          "name": "musik_frame_42418176"
         }
       }
     },
     {
-      "frame": 42221568,
+      "frame": 245809152,
       "action": {
         "TakeSnapshot": {
-          "name": "musik_frame_42221568"
-        }
-      }
-    },
-    {
-      "frame": 243843072,
-      "action": {
-        "TakeSnapshot": {
-          "name": "musik_frame_243843072"
+          "name": "musik_frame_245809152"
         }
       }
     }

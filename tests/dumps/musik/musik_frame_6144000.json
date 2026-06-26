@@ -1,8 +1,8 @@
 {
-  "frame": 10076160,
-  "pc": 63782,
+  "frame": 6144000,
+  "pc": 63386,
   "bus": {
-    "ram_hash": "2e4c2bfa2c9371dc575a3c3e996a060cbbd1c1bd3ea440115a81620647334935",
+    "ram_hash": "da4cd5300f9be1fc467f24f7614dfed891133ba82cea36680c0427ddbe621dad",
     "pio1": {
       "ports": [
         {
@@ -35,7 +35,7 @@
         }
       ],
       "reset_active": false,
-      "pins": 18374688816136321317
+      "pins": 18374693231397569147
     },
     "pio2": {
       "ports": [
@@ -55,7 +55,7 @@
         },
         {
           "input": 255,
-          "output": 64,
+          "output": 0,
           "mode": 3,
           "io_select": 255,
           "int_vector": 8,
@@ -69,7 +69,7 @@
         }
       ],
       "reset_active": false,
-      "pins": 18374688816136321317
+      "pins": 18374693231397569147
     },
     "ctc": {
       "chn": [
@@ -102,8 +102,8 @@
         {
           "control": 33,
           "constant": 150,
-          "down_counter": 93,
-          "prescaler": 121,
+          "down_counter": 71,
+          "prescaler": 162,
           "int_vector": 4,
           "trigger_edge": false,
           "waiting_for_trigger": false,
@@ -115,7 +115,7 @@
         {
           "control": 193,
           "constant": 64,
-          "down_counter": 54,
+          "down_counter": 39,
           "prescaler": 0,
           "int_vector": 6,
           "trigger_edge": false,
@@ -126,10 +126,10 @@
           "running": false
         }
       ],
-      "pins": 2336464697637
+      "pins": 6751725945467
     },
     "keyboard": {
-      "cur_time": 4100000,
+      "cur_time": 2500000,
       "sticky_time": 60000,
       "active_columns": 255,
       "active_lines": 0,
@@ -194,7 +194,7 @@
     },
     "user_slot": "None",
     "blink_flip_flop": 128,
-    "blink_counter": 245781,
+    "blink_counter": 245773,
     "ctc_zcto2": 0,
     "sys_porta": 0,
     "chargen_ram_hash": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
