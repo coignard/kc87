@@ -55,7 +55,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-kc87 = "0.4.0"
+kc87 = "0.4.1"
 ```
 
 ## Test

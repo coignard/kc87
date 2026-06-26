@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.1
+
+### Fixed
+
+- Video and color RAM are now contended. On a read or write to video RAM (`0xEC00-0xEFFF`), or to color RAM (`0xE800-0xEBFF`) unless the character generator window is active, during the visible part of a scanline, the bus asserts the Z80 `WAIT` pin and holds the access until the end of the visible region. Line timing is derived in the bus from `MASTER_CLOCK_HZ`, `FRAME_RATE_HZ` and 312 total / 192 visible lines; the visible region is `(TSTATES_PER_LINE + 1) / 2` = 79 of 157 T-states, matching JKCEMU's `round(157 / 2)`. This requires `u880` >= 0.1.4, where the memory `WAIT` pin is sampled on the data cycle with the address already on the bus instead of before the address is asserted; on 0.1.3 the stall latches stale bus data.
+- PIO interrupt daisy-chain priority. The keyboard PIO (port `0x90`) is now ticked before the system PIO (port `0x88`) and the CTC (`0x80`), matching the hardware order `pio90 > pio88 > ctc80` used by JKCEMU. Previously the system PIO was serviced first, so a pending keyboard interrupt could be pre-empted by a lower-priority source.
+- `.sss` and `-a` BASIC autoload dropped the first keystroke and typed `ASIC` instead of `BASIC`. The launcher injected `BASIC\r` after a fixed `CLOCK_HZ * 2` boot delay; under the new contention timing the first character arrived before the OS console loop was running and was discarded when the OS flushed its keyboard buffer during late init. The first key is now injected only when the program counter is inside the OS console-wait loop at `0xF924-0xF929` (`LD A,(0x0025); OR A; JR Z`), which the OS reaches only after it has finished initialising and is polling the buffer that the keyboard interrupt handler fills. The remaining keys keep the `0x0025 == 0` handshake. The loop is byte-identical in the Z9001 and KC87 OS ROMs (both at `0xF924`, in the shared `0xF800-0xFFFF` page), so the gate works on both machines.
+- Autorun of `--tap` / `--kcc` programs (`-a`) started the program with interrupts disabled. The auto path called `start_execution` blindly at `now + 2 s`, which under the shifted timing could seize the CPU inside an ISR or a `DI` region; the keyboard interrupt handler then never refilled `0x0024/0x0025`, so the program's `CALL 0x0005` console input (the J/N prompt in `musik3.tap`, for example) was dead. Load and start now wait for the same `0xF924` console-wait point, so interrupts are enabled and the `0x0005` vector is initialised. Non-autorun loads are unchanged.
+- The "MEMORY END:" reply is no longer timed by a fixed `CLOCK_HZ / 2` delay. `AwaitMemPrompt` now waits for the screen to settle through the shared `poll_screen_settled` helper before answering, so the answer is typed only after BASIC has drawn the prompt. `BASIC_START_DELAY_CYCLES` is removed.
+
+### Changed
+
+- Bumped `u880` from 0.1.3 to 0.1.4.
+
 ## 0.4.0
 
 ### Added
