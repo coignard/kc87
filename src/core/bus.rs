@@ -22,13 +22,20 @@ use u880::pins;
 use crate::core::chips::rtc7242x::Rtc7242x;
 use crate::core::chips::u855::{self, U855};
 use crate::core::chips::u857::{self, U857};
-use crate::core::machine::{GraphicsModule, Hardware, MASTER_CLOCK_HZ, MachineType, RamSize};
+use crate::core::machine::{
+    FRAME_RATE_HZ, GraphicsModule, Hardware, MASTER_CLOCK_HZ, MachineType, RamSize,
+};
 use crate::core::peripherals::UserPeripheral;
 use crate::core::peripherals::keyboard::Keyboard;
 
 const CURSOR_BLINK_INTERVAL_MS: u32 = 200;
 const BLINK_TOGGLE_CYCLES: u32 = MASTER_CLOCK_HZ * CURSOR_BLINK_INTERVAL_MS / 1000;
 const BLINK_FLIP_FLOP_BIT: u8 = 0x80;
+
+const VIDEO_TOTAL_LINES: u32 = 312;
+const VIDEO_VISIBLE_LINES: u32 = 192;
+const TSTATES_PER_LINE: u32 = MASTER_CLOCK_HZ / FRAME_RATE_HZ / VIDEO_TOTAL_LINES;
+const TSTATES_VISIBLE: u32 = (TSTATES_PER_LINE + 1) / 2;
 
 pub mod memory_map {
     pub const RAM_START: u16 = 0x0000;
@@ -329,6 +336,12 @@ pub struct Bus {
     pub current_cycle: u64,
     #[serde(skip)]
     prev_user_write: bool,
+    #[serde(skip)]
+    line_tstates: u32,
+    #[serde(skip)]
+    line_num: u32,
+    #[serde(skip)]
+    wait_pending: u32,
 }
 
 impl Bus {
@@ -497,6 +510,9 @@ impl Bus {
             c80_memswap: false,
             current_cycle: 0,
             prev_user_write: false,
+            line_tstates: 0,
+            line_num: 0,
+            wait_pending: 0,
         }
     }
 
@@ -652,7 +668,19 @@ impl Bus {
     }
 
     #[inline(always)]
+    fn is_contended(&self, addr: u16) -> bool {
+        if (memory_map::VIDEO_RAM_START..memory_map::VIDEO_RAM_END).contains(&addr) {
+            return true;
+        }
+        if (memory_map::COLOR_RAM_START..memory_map::COLOR_RAM_END).contains(&addr) {
+            return !(self.chargen && self.chargen_window);
+        }
+        false
+    }
+
+    #[inline(always)]
     pub fn tick(&mut self, mut pins: u64) -> (u64, bool) {
+        let mut waiting = false;
         if (pins & pins::MREQ) != 0 {
             let addr = pins::addr(pins);
             if (pins & pins::RD) != 0 {
@@ -660,9 +688,49 @@ impl Bus {
             } else if (pins & pins::WR) != 0 {
                 self.write_memory(addr, pins::data(pins));
             }
+            if (pins & (pins::RD | pins::WR)) != 0
+                && self.line_num < VIDEO_VISIBLE_LINES
+                && self.line_tstates < TSTATES_VISIBLE
+                && self.is_contended(addr)
+            {
+                self.wait_pending = TSTATES_VISIBLE - self.line_tstates;
+                waiting = true;
+            }
+        }
+        if waiting {
+            pins |= pins::WAIT;
+        } else if self.wait_pending > 0 {
+            pins |= pins::WAIT;
+            self.wait_pending -= 1;
+        } else {
+            pins &= !pins::WAIT;
         }
 
         pins |= pins::IEIO;
+        if Self::is_io_device(pins, pins::A4) {
+            pins |= u855::CE;
+        }
+        if (pins & pins::A0) != 0 {
+            pins |= u855::BASEL;
+        }
+        if (pins & pins::A1) != 0 {
+            pins |= u855::CDSEL;
+        }
+
+        let pa_in = (!self.keyboard.scan_columns()) as u8;
+        let pb_in = (!self.keyboard.scan_lines()) as u8;
+        pins = (pins & !(0xFFFF_u64 << PIO_PORT_A_SHIFT))
+            | ((pa_in as u64) << PIO_PORT_A_SHIFT)
+            | ((pb_in as u64) << PIO_PORT_B_SHIFT);
+
+        pins = self.pio2.tick(pins);
+
+        let pa_out = !((pins >> PIO_PORT_A_SHIFT) as u8);
+        let pb_out = !((pins >> PIO_PORT_B_SHIFT) as u8);
+        self.keyboard.set_active_columns(pa_out as u16);
+        self.keyboard.set_active_lines(pb_out as u16);
+        pins &= pins::PIN_MASK;
+
         if Self::is_io_device(pins, pins::A3) {
             pins |= u855::CE;
         }
@@ -708,30 +776,6 @@ impl Bus {
 
         pins = self.pio1.tick(pins);
         self.sys_porta = self.pio1.output_a();
-        pins &= pins::PIN_MASK;
-
-        if Self::is_io_device(pins, pins::A4) {
-            pins |= u855::CE;
-        }
-        if (pins & pins::A0) != 0 {
-            pins |= u855::BASEL;
-        }
-        if (pins & pins::A1) != 0 {
-            pins |= u855::CDSEL;
-        }
-
-        let pa_in = (!self.keyboard.scan_columns()) as u8;
-        let pb_in = (!self.keyboard.scan_lines()) as u8;
-        pins = (pins & !(0xFFFF_u64 << PIO_PORT_A_SHIFT))
-            | ((pa_in as u64) << PIO_PORT_A_SHIFT)
-            | ((pb_in as u64) << PIO_PORT_B_SHIFT);
-
-        pins = self.pio2.tick(pins);
-
-        let pa_out = !((pins >> PIO_PORT_A_SHIFT) as u8);
-        let pb_out = !((pins >> PIO_PORT_B_SHIFT) as u8);
-        self.keyboard.set_active_columns(pa_out as u16);
-        self.keyboard.set_active_lines(pb_out as u16);
         pins &= pins::PIN_MASK;
 
         pins |= self.ctc_zcto2;
@@ -827,6 +871,15 @@ impl Bus {
         if old_blink == 0 {
             self.blink_counter = BLINK_TOGGLE_CYCLES;
             self.blink_flip_flop ^= BLINK_FLIP_FLOP_BIT;
+        }
+
+        self.line_tstates += 1;
+        if self.line_tstates >= TSTATES_PER_LINE {
+            self.line_tstates -= TSTATES_PER_LINE;
+            self.line_num += 1;
+            if self.line_num >= VIDEO_TOTAL_LINES {
+                self.line_num = 0;
+            }
         }
 
         (pins, beeper_toggled)
