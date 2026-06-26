@@ -528,7 +528,12 @@ impl Machine {
             })
     }
 
-    fn poll_screen_settled(&self, last: u32, stable: u32, changed: bool) -> Option<(u32, u32, bool)> {
+    fn poll_screen_settled(
+        &self,
+        last: u32,
+        stable: u32,
+        changed: bool,
+    ) -> Option<(u32, u32, bool)> {
         let now_sum = self.screen_checksum();
         if now_sum != last {
             Some((now_sum, 0, true))
@@ -732,14 +737,14 @@ impl Machine {
                         .unwrap_or(false);
                     let at_safe_point =
                         (KBD_WAIT_LOOP_BEG..KBD_WAIT_LOOP_END).contains(&self.cpu.regs.pc);
-                    if !autorun || at_safe_point {
-                        if let Some(pending) = self.pending_load.take() {
-                            for module in &pending.modules {
-                                self.preload_module(module);
-                            }
-                            if !pending.data.is_empty() {
-                                let _ = self.load_quick(&pending.data, pending.autorun);
-                            }
+                    if (!autorun || at_safe_point)
+                        && let Some(pending) = self.pending_load.take()
+                    {
+                        for module in &pending.modules {
+                            self.preload_module(module);
+                        }
+                        if !pending.data.is_empty() {
+                            let _ = self.load_quick(&pending.data, pending.autorun);
                         }
                     }
                 }
