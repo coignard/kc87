@@ -1,0 +1,47 @@
+{
+  "metadata": {
+    "program": "eric-basic.sss",
+    "program_sha256": "d1de6b0d4e1b0e54e459cbd5a49cc3d7a4f9c602dc6f1499bec26e66807626bb",
+    "autorun": true,
+    "sample_rate": 44100,
+    "machine_type": "KC87",
+    "ram": "Default",
+    "chargen": false,
+    "graphics": "Robotron",
+    "c80": false,
+    "rtc": false,
+    "payload_format": "sss",
+    "rom_module": null,
+    "rom_module_sha256": null,
+    "modules": [
+      {
+        "name": "graf_com.tap",
+        "sha256": "a055f06863ab5765f74446293b52ed8a86c524c17fd120ebb6864dd8946d9d61",
+        "addr": null
+      },
+      {
+        "name": "eric-data.bin",
+        "sha256": "2d297e7f5a28d17ba21fea30bf91895217c3350d5eb3cef7ecb4c763c7554f05",
+        "addr": 11776
+      }
+    ]
+  },
+  "events": [
+    {
+      "frame": 7913472,
+      "action": {
+        "TakeSnapshot": {
+          "name": "eric-basic_frame_7913472"
+        }
+      }
+    },
+    {
+      "frame": 157237248,
+      "action": {
+        "TakeSnapshot": {
+          "name": "eric-basic_frame_157237248"
+        }
+      }
+    }
+  ]
+}
