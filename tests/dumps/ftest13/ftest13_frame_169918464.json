@@ -1,8 +1,8 @@
 {
-  "frame": 407912448,
-  "pc": 34122,
+  "frame": 169918464,
+  "pc": 34112,
   "bus": {
-    "ram_hash": "361ec50e5af67881ea9f9dd620f506beb86fefa9a76b86f7ea6086964d7de039",
+    "ram_hash": "b586257fb7268e7fb2e03a91d12e2890d71cc4ea77dceba045ede03a1ff5bcd5",
     "pio1": {
       "ports": [
         {
@@ -21,44 +21,44 @@
         },
         {
           "input": 0,
-          "output": 254,
-          "mode": 3,
-          "io_select": 170,
-          "int_vector": 74,
-          "int_control": 144,
-          "int_mask": 254,
+          "output": 0,
+          "mode": 1,
+          "io_select": 0,
+          "int_vector": 0,
+          "int_control": 0,
+          "int_mask": 255,
           "int_state": 0,
-          "int_enabled": true,
+          "int_enabled": false,
           "expect_io_select": false,
           "expect_int_mask": false,
-          "bctrl_match": true
+          "bctrl_match": false
         }
       ],
       "reset_active": false,
-      "pins": 18302631222112322889
+      "pins": 18374693214182475071
     },
     "pio2": {
       "ports": [
         {
           "input": 255,
-          "output": 254,
+          "output": 0,
           "mode": 3,
           "io_select": 0,
-          "int_vector": 76,
-          "int_control": 16,
-          "int_mask": 0,
+          "int_vector": 0,
+          "int_control": 0,
+          "int_mask": 255,
           "int_state": 0,
           "int_enabled": false,
           "expect_io_select": false,
           "expect_int_mask": false,
-          "bctrl_match": true
+          "bctrl_match": false
         },
         {
           "input": 255,
           "output": 0,
           "mode": 3,
           "io_select": 255,
-          "int_vector": 78,
+          "int_vector": 8,
           "int_control": 144,
           "int_mask": 0,
           "int_state": 0,
@@ -69,7 +69,7 @@
         }
       ],
       "reset_active": false,
-      "pins": 18446183460234757449
+      "pins": 18374693214182475071
     },
     "ctc": {
       "chn": [
@@ -90,7 +90,7 @@
           "control": 3,
           "constant": 5,
           "down_counter": 2,
-          "prescaler": 129,
+          "prescaler": 103,
           "int_vector": 66,
           "trigger_edge": false,
           "waiting_for_trigger": false,
@@ -102,8 +102,8 @@
         {
           "control": 1,
           "constant": 14,
-          "down_counter": 11,
-          "prescaler": 104,
+          "down_counter": 5,
+          "prescaler": 181,
           "int_vector": 68,
           "trigger_edge": false,
           "waiting_for_trigger": false,
@@ -126,12 +126,12 @@
           "running": false
         }
       ],
-      "pins": 2336478627145
+      "pins": 6734510851391
     },
     "keyboard": {
-      "cur_time": 165980000,
+      "cur_time": 69140000,
       "sticky_time": 60000,
-      "active_columns": 1,
+      "active_columns": 255,
       "active_lines": 0,
       "key_buffer": [
         {
@@ -194,7 +194,7 @@
     },
     "user_slot": "None",
     "blink_flip_flop": 0,
-    "blink_counter": 49982,
+    "blink_counter": 147802,
     "ctc_zcto2": 0,
     "sys_porta": 0,
     "chargen_ram_hash": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
