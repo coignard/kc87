@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "program": "lkccdemo.kcc",
+    "program_sha256": "a0a14e3ade322b21ab8e0d8f480808d78ad30d66f6f094bffd8a1776daba1468",
+    "autorun": true,
+    "sample_rate": 44100,
+    "machine_type": "KC87",
+    "ram": "Default",
+    "chargen": false,
+    "graphics": "None",
+    "c80": false,
+    "rtc": false,
+    "payload_format": "auto",
+    "rom_module": null,
+    "rom_module_sha256": null,
+    "modules": []
+  },
+  "events": [
+    {
+      "frame": 9093120,
+      "action": {
+        "TakeSnapshot": {
+          "name": "lkccdemo_frame_9093120"
+        }
+      }
+    }
+  ]
+}
