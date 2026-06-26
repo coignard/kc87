@@ -1,0 +1,218 @@
+{
+  "frame": 634945536,
+  "pc": 50371,
+  "bus": {
+    "ram_hash": "bed8dfa32b3a25fd91a4151e237354df6e2c197386a56635a4292c472e0f4e4f",
+    "pio1": {
+      "ports": [
+        {
+          "input": 0,
+          "output": 0,
+          "mode": 3,
+          "io_select": 0,
+          "int_vector": 0,
+          "int_control": 0,
+          "int_mask": 255,
+          "int_state": 0,
+          "int_enabled": false,
+          "expect_io_select": false,
+          "expect_int_mask": false,
+          "bctrl_match": false
+        },
+        {
+          "input": 0,
+          "output": 0,
+          "mode": 1,
+          "io_select": 0,
+          "int_vector": 0,
+          "int_control": 0,
+          "int_mask": 255,
+          "int_state": 0,
+          "int_enabled": false,
+          "expect_io_select": false,
+          "expect_int_mask": false,
+          "bctrl_match": false
+        }
+      ],
+      "reset_active": false,
+      "pins": 18374686617110972036
+    },
+    "pio2": {
+      "ports": [
+        {
+          "input": 255,
+          "output": 0,
+          "mode": 3,
+          "io_select": 0,
+          "int_vector": 0,
+          "int_control": 0,
+          "int_mask": 255,
+          "int_state": 0,
+          "int_enabled": false,
+          "expect_io_select": false,
+          "expect_int_mask": false,
+          "bctrl_match": false
+        },
+        {
+          "input": 255,
+          "output": 64,
+          "mode": 3,
+          "io_select": 255,
+          "int_vector": 8,
+          "int_control": 144,
+          "int_mask": 0,
+          "int_state": 0,
+          "int_enabled": true,
+          "expect_io_select": false,
+          "expect_int_mask": false,
+          "bctrl_match": false
+        }
+      ],
+      "reset_active": false,
+      "pins": 18374686617110972036
+    },
+    "ctc": {
+      "chn": [
+        {
+          "control": 3,
+          "constant": 0,
+          "down_counter": 0,
+          "prescaler": 0,
+          "int_vector": 0,
+          "trigger_edge": false,
+          "waiting_for_trigger": false,
+          "ext_trigger": false,
+          "prescaler_mask": 15,
+          "int_state": 0,
+          "running": false
+        },
+        {
+          "control": 2,
+          "constant": 0,
+          "down_counter": 0,
+          "prescaler": 0,
+          "int_vector": 2,
+          "trigger_edge": false,
+          "waiting_for_trigger": false,
+          "ext_trigger": false,
+          "prescaler_mask": 15,
+          "int_state": 0,
+          "running": false
+        },
+        {
+          "control": 33,
+          "constant": 150,
+          "down_counter": 148,
+          "prescaler": 82,
+          "int_vector": 4,
+          "trigger_edge": false,
+          "waiting_for_trigger": false,
+          "ext_trigger": false,
+          "prescaler_mask": 255,
+          "int_state": 0,
+          "running": true
+        },
+        {
+          "control": 193,
+          "constant": 64,
+          "down_counter": 53,
+          "prescaler": 0,
+          "int_vector": 6,
+          "trigger_edge": false,
+          "waiting_for_trigger": false,
+          "ext_trigger": false,
+          "prescaler_mask": 15,
+          "int_state": 0,
+          "running": false
+        }
+      ],
+      "pins": 137439348356
+    },
+    "keyboard": {
+      "cur_time": 258360000,
+      "sticky_time": 60000,
+      "active_columns": 255,
+      "active_lines": 0,
+      "key_buffer": [
+        {
+          "key": 0,
+          "mask": 0,
+          "pressed_time": 0,
+          "released": false
+        },
+        {
+          "key": 0,
+          "mask": 0,
+          "pressed_time": 0,
+          "released": false
+        },
+        {
+          "key": 0,
+          "mask": 0,
+          "pressed_time": 0,
+          "released": false
+        },
+        {
+          "key": 0,
+          "mask": 0,
+          "pressed_time": 0,
+          "released": false
+        }
+      ],
+      "scanout_column_masks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "scanout_line_masks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "cur_column_mask": 0,
+      "cur_scanout_line_mask": 0,
+      "cur_line_mask": 0,
+      "cur_scanout_column_mask": 0
+    },
+    "user_slot": "None",
+    "blink_flip_flop": 0,
+    "blink_counter": 99596,
+    "ctc_zcto2": 0,
+    "sys_porta": 0,
+    "chargen_ram_hash": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+    "chargen_window": false,
+    "chargen_active": false,
+    "ram_ext_hash": "4fe7b59af6de3b665b67788cc2f99892ab827efae3a467342b3bb4e3bc8e5bfe",
+    "ram_4000_seg1": false,
+    "ram_c000": false,
+    "ram_pixel_hash": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47",
+    "graph_mode": false,
+    "graph_fg": 0,
+    "graph_bg": 0,
+    "graph_border": false,
+    "graph_bank": 0,
+    "graph_addr_l": 0,
+    "ram_video2_hash": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+    "ram_color2_hash": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+    "c80_active": false,
+    "c80_memswap": false
+  }
+}
