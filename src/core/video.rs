@@ -58,6 +58,20 @@ const PALETTE: [[u8; 4]; 8] = [
     [0xFF, 0xFF, 0xFF, 0xFF],
 ];
 
+const MONO_BLACK: usize = 0;
+const MONO_WHITE: usize = 7;
+
+fn resolve_color(index: u8, has_color: bool) -> [u8; 4] {
+    let index = (index & COLOR_INDEX_MASK) as usize;
+    if has_color {
+        PALETTE[index]
+    } else if index == MONO_BLACK {
+        PALETTE[MONO_BLACK]
+    } else {
+        PALETTE[MONO_WHITE]
+    }
+}
+
 pub struct VideoRenderer {
     pub font_rom: Vec<u8>,
     frame_buffer: Vec<u8>,
@@ -126,13 +140,10 @@ impl VideoRenderer {
         let hscale = content_width / BASE_WIDTH;
 
         let has_color = machine_type == MachineType::KC87;
-        let frame_border = PALETTE[(border_color & COLOR_INDEX_MASK) as usize];
-
-        let outer_border = if has_color { frame_border } else { PALETTE[0] };
-        let gap_color = outer_border;
+        let frame_border = resolve_color(border_color, has_color);
 
         for px in self.frame_buffer.chunks_exact_mut(BYTES_PER_PIXEL) {
-            px.copy_from_slice(&outer_border);
+            px.copy_from_slice(&frame_border);
         }
 
         if bus.graph_robotron_active() {
@@ -231,12 +242,6 @@ impl VideoRenderer {
                         let idx = base_idx + b * BYTES_PER_PIXEL;
                         self.frame_buffer[idx..idx + BYTES_PER_PIXEL].copy_from_slice(&color);
                     }
-                }
-            } else if !has_color {
-                let base_idx = (fb_y * fb_width + BORDER_X) * BYTES_PER_PIXEL;
-                for x in 0..content_width {
-                    let idx = base_idx + x * BYTES_PER_PIXEL;
-                    self.frame_buffer[idx..idx + BYTES_PER_PIXEL].copy_from_slice(&gap_color);
                 }
             }
         }
