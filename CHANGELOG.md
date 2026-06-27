@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+### Fixed
+
+- Fixed Z 9001 border colour.
+
 ## 0.5.0
 
 ### Added
