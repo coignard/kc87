@@ -1161,19 +1161,27 @@ dependencies = [
 
 [[package]]
 name = "kc87"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "assert-json-diff",
+ "block2 0.6.2",
  "chrono",
  "clap",
  "coremidi",
  "cpal",
  "crossbeam-channel",
+ "dispatch2",
  "hex",
  "image",
+ "libc",
  "midir",
  "midly",
+ "objc2 0.6.4",
+ "objc2-core-audio",
+ "objc2-core-audio-types",
+ "objc2-core-foundation",
+ "objc2-foundation 0.3.2",
  "pixels",
  "serde",
  "serde-big-array",
@@ -1546,7 +1554,9 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1eebcea8b0dbff5f7c8504f3107c68fc061a3eb44932051c8cf8a68d969c3b2"
 dependencies = [
+ "block2 0.6.2",
  "dispatch2",
+ "libc",
  "objc2 0.6.4",
  "objc2-core-audio-types",
  "objc2-core-foundation",

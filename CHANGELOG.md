@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+### Added
+
+- `--tape <source>` feeds an external audio signal into the cassette input by strobing port A of the system PIO (`0x88`) on every zero crossing, the way the KC 87 reads tape. macOS only.
+- `utils/bin2wav.py`: standalone converter for KC 87/Z 9001 cassette formats.
+
 ## 0.4.1
 
 ### Fixed
