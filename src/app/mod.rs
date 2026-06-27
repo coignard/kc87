@@ -18,6 +18,8 @@
 pub mod audio;
 pub mod keyboard;
 pub mod shaders;
+#[cfg(target_os = "macos")]
+pub mod tape;
 
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -407,6 +409,10 @@ pub struct AppConfig {
     pub midi_out: Option<MidiConn>,
     pub keyboard_layout: KeyboardLayout,
     pub ostalgie: Option<Preset>,
+    #[cfg(target_os = "macos")]
+    pub tape: Option<tape::TapeSource>,
+    #[cfg(target_os = "macos")]
+    pub tape_device: Option<String>,
 }
 
 pub struct App {
@@ -434,6 +440,9 @@ pub struct App {
     frame_rx: Receiver<EmulationFrame>,
     emu_err_rx: Receiver<EmulationError>,
     emu_thread: Option<JoinHandle<()>>,
+
+    #[cfg(target_os = "macos")]
+    _tape: Option<Box<dyn tape::TapeIn>>,
 
     pub fatal_error: Option<anyhow::Error>,
 }
@@ -487,6 +496,20 @@ impl App {
         let recorder_opt = config.recorder;
         let player_opt = config.player;
 
+        #[cfg(target_os = "macos")]
+        let (tape_keepalive, tape_param) = match config.tape {
+            Some(source) => match tape::start(source, config.tape_device.as_deref()) {
+                Ok((keepalive, rx, rate)) => (Some(keepalive), Some((rx, rate))),
+                Err(err) => {
+                    eprintln!("Tape input disabled: {err:#}");
+                    (None, None)
+                }
+            },
+            None => (None, None),
+        };
+        #[cfg(not(target_os = "macos"))]
+        let tape_param: Option<(Receiver<f32>, u32)> = None;
+
         let emu_thread = std::thread::Builder::new()
             .name("emulation".into())
             .spawn(move || {
@@ -499,6 +522,7 @@ impl App {
                     midi_thread,
                     recorder_opt,
                     player_opt,
+                    tape_param,
                     cmd_rx,
                     frame_tx,
                     emu_err_tx,
@@ -529,6 +553,8 @@ impl App {
             frame_rx,
             emu_err_rx,
             emu_thread: Some(emu_thread),
+            #[cfg(target_os = "macos")]
+            _tape: tape_keepalive,
             fatal_error: None,
         }
     }
@@ -709,6 +735,14 @@ impl ApplicationHandler for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        #[cfg(target_os = "macos")]
+        if let Some(tape) = &mut self._tape
+            && let Some(err) = tape.poll_error()
+        {
+            eprintln!("Tape input error: {err:#}");
+            self._tape = None;
+        }
+
         if let Ok(err) = self.audio.err_rx.try_recv() {
             self.fatal_error = Some(err);
             event_loop.exit();
@@ -797,6 +831,7 @@ fn run_emulation(
     midi_thread: Option<JoinHandle<()>>,
     mut recorder_opt: Option<ReplayRecorder>,
     mut player_opt: Option<ReplayPlayer>,
+    tape: Option<(Receiver<f32>, u32)>,
     cmd_rx: Receiver<EmulationCommand>,
     frame_tx: Sender<EmulationFrame>,
     emu_err_tx: Sender<EmulationError>,
@@ -814,6 +849,9 @@ fn run_emulation(
     let mut ff_skip_counter = 0;
 
     let mut machine = machine_config.new_machine();
+    if let Some((rx, rate)) = &tape {
+        machine.attach_tape(rx.clone(), *rate);
+    }
 
     let save_replay = |rec: &Option<ReplayRecorder>| {
         if let Some(r) = rec
@@ -866,6 +904,9 @@ fn run_emulation(
                     recorder_opt = None;
                     player_opt = None;
                     machine = machine_config.new_machine();
+                    if let Some((rx, rate)) = &tape {
+                        machine.attach_tape(rx.clone(), *rate);
+                    }
                     midi_stream = midly::stream::MidiStream::new();
                     if let Some(tx) = &midi_tx {
                         let _ = tx.send(MidiThreadMsg::HardReset);
