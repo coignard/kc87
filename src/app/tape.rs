@@ -556,9 +556,7 @@ fn ensure_audio_access() -> Result<()> {
 
         match preflight(service_ptr, ptr::null()) {
             0 => return Ok(()),
-            1 => bail!(
-                "system audio recording is denied"
-            ),
+            1 => bail!("system audio recording is denied"),
             _ => {}
         }
 
