@@ -275,6 +275,12 @@ impl U855 {
             current_pins = self.handle_iorq(current_pins);
         }
         self.read_port_inputs(current_pins);
+        if (current_pins & ASTB) != 0 && (self.pins & ASTB) == 0 {
+            let p = &mut self.ports[0];
+            if p.mode != MODE_BITCONTROL && p.int_enabled {
+                p.int_state |= INT_NEEDED;
+            }
+        }
         current_pins = self.set_port_output_pins(current_pins);
         current_pins = self.handle_int(current_pins);
 
