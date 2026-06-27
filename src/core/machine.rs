@@ -19,6 +19,8 @@ use serde::Serialize;
 use std::fmt;
 use u880::Cpu;
 
+use crossbeam_channel::Receiver;
+
 use super::beeper::Beeper;
 use super::bus::{Bus, memory_map};
 use super::peripherals::UserPeripheral;
@@ -271,6 +273,10 @@ impl Machine {
                 let _ = self.load_quick(&module.data, false);
             }
         }
+    }
+
+    pub fn attach_tape(&mut self, rx: Receiver<f32>, sample_rate: u32) {
+        self.bus.attach_tape(rx, sample_rate);
     }
 
     pub fn schedule_load(
