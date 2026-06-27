@@ -21,4 +21,5 @@ pub mod chips;
 pub mod debug;
 pub mod machine;
 pub mod peripherals;
+pub mod tape;
 pub mod video;
