@@ -27,6 +27,8 @@ use winit::event_loop::EventLoop;
 use crate::app::audio::AudioSystem;
 use crate::app::keyboard::KeyboardLayout;
 use crate::app::shaders::Preset;
+#[cfg(target_os = "macos")]
+use crate::app::tape::TapeSource;
 use crate::app::{App, AppConfig, MachineConfig, MidiConn};
 use kc87::core::debug::{ReplayMetadata, ReplayModule, ReplayPlayer, ReplayRecorder};
 use kc87::core::machine::{
@@ -250,6 +252,25 @@ impl From<KeyboardLayoutArg> for KeyboardLayout {
     }
 }
 
+#[cfg(target_os = "macos")]
+#[derive(Copy, Clone, Debug, ValueEnum)]
+enum TapeSourceArg {
+    #[value(name = "input")]
+    Input,
+    #[value(name = "system")]
+    System,
+}
+
+#[cfg(target_os = "macos")]
+impl From<TapeSourceArg> for TapeSource {
+    fn from(arg: TapeSourceArg) -> Self {
+        match arg {
+            TapeSourceArg::Input => TapeSource::Input,
+            TapeSourceArg::System => TapeSource::System,
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(
     name = "kc87",
@@ -313,6 +334,28 @@ struct Args {
     /// Path to a ROM module image (.rom) to map at C000h
     #[arg(long, value_name = "file", help_heading = "General options")]
     rom: Option<String>,
+
+    /// Run the loaded program immediately after startup
+    #[arg(short = 'a', long = "autorun", help_heading = "General options")]
+    autorun: bool,
+
+    /// Print this message and exit
+    #[arg(
+        short = 'h',
+        long = "help",
+        action = clap::ArgAction::Help,
+        help_heading = "General options"
+    )]
+    help: Option<bool>,
+
+    /// Print version information and exit
+    #[arg(
+        short = 'V',
+        long = "version",
+        action = clap::ArgAction::Version,
+        help_heading = "General options"
+    )]
+    version: Option<bool>,
 
     /// RAM expansion
     /// Default: 48k
@@ -382,27 +425,37 @@ struct Args {
     )]
     keyboard_layout: KeyboardLayoutArg,
 
-    /// Run the loaded program immediately after startup
-    #[arg(short = 'a', long = "autorun", help_heading = "General options")]
-    autorun: bool,
-
-    /// Print this message and exit
+    /// Tape input source
+    /// Possible values: input, system
+    #[cfg(target_os = "macos")]
     #[arg(
-        short = 'h',
-        long = "help",
-        action = clap::ArgAction::Help,
-        help_heading = "General options"
+        long,
+        value_name = "source",
+        value_enum,
+        num_args = 0..=1,
+        hide_possible_values = true,
+        default_missing_value = "system",
+        help_heading = "Tape options",
+        verbatim_doc_comment
     )]
-    help: Option<bool>,
+    tape: Option<TapeSourceArg>,
 
-    /// Print version information and exit
+    /// Audio input device
+    /// Default: system default input
+    #[cfg(target_os = "macos")]
     #[arg(
-        short = 'V',
-        long = "version",
-        action = clap::ArgAction::Version,
-        help_heading = "General options"
+        long,
+        value_name = "name",
+        requires = "tape",
+        help_heading = "Tape options",
+        verbatim_doc_comment
     )]
-    version: Option<bool>,
+    tape_device: Option<String>,
+
+    /// List available audio input devices and exit
+    #[cfg(target_os = "macos")]
+    #[arg(long, help_heading = "Tape options")]
+    tape_input_list: bool,
 
     /// Connect to a MIDI output port by name or index
     /// Default: first available port
@@ -500,6 +553,12 @@ fn main() -> Result<()> {
 
     if args.midi_list {
         list_midi_outputs(midi_name);
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    if args.tape_input_list {
+        crate::app::tape::list_devices();
         return Ok(());
     }
 
@@ -737,6 +796,10 @@ fn main() -> Result<()> {
             midi_out: midi_conn,
             keyboard_layout: args.keyboard_layout.into(),
             ostalgie,
+            #[cfg(target_os = "macos")]
+            tape: args.tape.map(Into::into),
+            #[cfg(target_os = "macos")]
+            tape_device: args.tape_device,
         },
     );
 
