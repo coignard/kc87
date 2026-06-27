@@ -19,6 +19,8 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use u880::pins;
 
+use crossbeam_channel::Receiver;
+
 use crate::core::chips::rtc7242x::Rtc7242x;
 use crate::core::chips::u855::{self, U855};
 use crate::core::chips::u857::{self, U857};
@@ -27,6 +29,7 @@ use crate::core::machine::{
 };
 use crate::core::peripherals::UserPeripheral;
 use crate::core::peripherals::keyboard::Keyboard;
+use crate::core::tape::TapeTract;
 
 const CURSOR_BLINK_INTERVAL_MS: u32 = 200;
 const BLINK_TOGGLE_CYCLES: u32 = MASTER_CLOCK_HZ * CURSOR_BLINK_INTERVAL_MS / 1000;
@@ -342,6 +345,14 @@ pub struct Bus {
     line_num: u32,
     #[serde(skip)]
     wait_pending: u32,
+    #[serde(skip)]
+    tape_rx: Option<Receiver<f32>>,
+    #[serde(skip)]
+    tape_sample_rate: u32,
+    #[serde(skip)]
+    tape_tract: TapeTract,
+    #[serde(skip)]
+    tape_acc: u32,
 }
 
 impl Bus {
@@ -513,7 +524,18 @@ impl Bus {
             line_tstates: 0,
             line_num: 0,
             wait_pending: 0,
+            tape_rx: None,
+            tape_sample_rate: 0,
+            tape_tract: TapeTract::new(),
+            tape_acc: 0,
         }
+    }
+
+    pub fn attach_tape(&mut self, rx: Receiver<f32>, sample_rate: u32) {
+        self.tape_rx = Some(rx);
+        self.tape_sample_rate = sample_rate;
+        self.tape_acc = 0;
+        self.tape_tract = TapeTract::new();
     }
 
     #[inline]
@@ -772,6 +794,28 @@ impl Bus {
                 ports::C80_WIDE_ON | ports::C80_WIDE_ON_ALT => self.c80_active = true,
                 _ => {}
             }
+        }
+
+        let mut tape_strobe = false;
+        if let Some(rx) = &self.tape_rx {
+            self.tape_acc = self.tape_acc.saturating_add(self.tape_sample_rate);
+            while self.tape_acc >= MASTER_CLOCK_HZ {
+                match rx.try_recv() {
+                    Ok(sample) => {
+                        self.tape_acc -= MASTER_CLOCK_HZ;
+                        if self.tape_tract.push(sample).is_some() {
+                            tape_strobe = true;
+                        }
+                    }
+                    Err(_) => {
+                        self.tape_acc = MASTER_CLOCK_HZ;
+                        break;
+                    }
+                }
+            }
+        }
+        if tape_strobe {
+            pins |= u855::ASTB;
         }
 
         pins = self.pio1.tick(pins);
