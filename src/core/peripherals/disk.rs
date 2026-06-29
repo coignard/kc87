@@ -1118,7 +1118,11 @@ fn parse_teledisk(bytes: &[u8], read_only: bool) -> Result<FloppyDisk, Container
             }
             let bogus_header = sec_ctrl & TELEDISK_SECTOR_BOGUS_HEADER != 0;
             let id_cyl = if bogus_header { track } else { sec_track };
-            let id_head = if bogus_header { head & TELEDISK_HEAD_NUMBER_MASK } else { sec_head };
+            let id_head = if bogus_header {
+                head & TELEDISK_HEAD_NUMBER_MASK
+            } else {
+                sec_head
+            };
             let mut sector = StoredSector::new(id_cyl, id_head, sec_num, sec_size_code, data);
             sector.deleted = sec_ctrl & TELEDISK_SECTOR_DELETED != 0;
             sector.error = sec_ctrl & TELEDISK_SECTOR_CRC_ERROR != 0;
