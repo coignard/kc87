@@ -23,7 +23,7 @@ use flate2::read::GzDecoder;
 
 const HEAD_MASK: usize = 0x01;
 const SIZE_CODE_BASE: usize = 0x80;
-const MAX_SIZE_CODE: u8 = 6;
+const SIZE_CODE_MAX: u8 = 6;
 const HD_SECTOR_SIZE: usize = 512;
 const HD_SECTORS_PER_TRACK: usize = 15;
 
@@ -134,7 +134,7 @@ fn size_code_by_size(sector_size: usize) -> u8 {
     }
     let mut value = 0u8;
     let mut size = SIZE_CODE_BASE;
-    while size < sector_size && value < MAX_SIZE_CODE {
+    while size < sector_size && value < SIZE_CODE_MAX {
         value += 1;
         size <<= 1;
     }
@@ -142,7 +142,7 @@ fn size_code_by_size(sector_size: usize) -> u8 {
 }
 
 fn size_by_size_code(size_code: u8) -> usize {
-    SIZE_CODE_BASE << (size_code.min(MAX_SIZE_CODE) as usize)
+    SIZE_CODE_BASE << (size_code.min(SIZE_CODE_MAX) as usize)
 }
 
 fn interleave_order(sectors_per_track: usize, interleave: usize) -> Vec<usize> {
@@ -579,7 +579,6 @@ const CPC_HEADER_EXT: &[u8] = b"EXTENDED CPC DSK";
 const CPC_TRACK_HEADER: &[u8] = b"Track-Info\r\n";
 
 const TWO_SIDES: usize = 2;
-const SIZE_CODE_MAX: u8 = 6;
 const MAX_IMAGE_SIZE: usize = 4 * 1024 * 1024;
 
 const IMD_END_OF_COMMENT: u8 = 0x1A;
