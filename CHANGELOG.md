@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.6.0
+
+### Added
+
+- `--floppy <image>` attaches a disk image to drive A through a U8272 controller (status/data at `0x98-0x9F`, terminal-count and reset control at `0xA0-0xA7`). The container format is auto-detected from its signature.
+- `--floppy-format <format>` sets the geometry for raw images.
+- `utils/img2dir.py`: unpacks the CP/M (CP/A) file system inside a raw image into a folder and repacks it, preserving file order, user areas and R/S/A attributes through a `manifest.json`.
+- `--power-save` sleeps when the audio buffer is full instead of busy-waiting and parks the window loop between frames.
+
+### Changed
+
+- Relicensed utils from Zlib to LGPL.
+- Added `flate2` and `lzhuf` dependencies for compressed containers.
+- Tape support moved from `core` into the `peripherals` module. The public path is now `core::peripherals::tape`.
+
+### Fixed
+
+- 64K RAM module banking now toggles on `IN` as well as `OUT`.
+
 ## 0.5.1
 
 ### Fixed
