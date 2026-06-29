@@ -62,6 +62,7 @@ const MIDI_CC_ALL_NOTES_OFF: u8 = 123;
 const MIDI_CHANNELS_COUNT: u8 = 16;
 const MIDI_VOICE_MSG_LEN: usize = 3;
 const FAST_FORWARD_HOLD_MS: u64 = 500;
+const POWER_SAVE_SLEEP_MS: u64 = 1;
 const MIDI_SYNC_LAG_FRAMES: f64 = 3.0;
 
 const FRAME_CHANNEL_CAPACITY: usize = 2;
@@ -410,6 +411,7 @@ enum MidiThreadMsg {
 
 pub struct AppConfig {
     pub debug_mode: bool,
+    pub power_save: bool,
     pub recorder: Option<ReplayRecorder>,
     pub player: Option<ReplayPlayer>,
     pub midi_out: Option<MidiConn>,
@@ -434,6 +436,7 @@ pub struct App {
     current_height: u32,
 
     debug_mode: bool,
+    power_save: bool,
     paused: bool,
     f9_pressed_since: Option<Instant>,
     is_fast_forwarding: bool,
@@ -516,6 +519,8 @@ impl App {
         #[cfg(not(target_os = "macos"))]
         let tape_param: Option<(Receiver<f32>, u32)> = None;
 
+        let power_save = config.power_save;
+
         let emu_thread = std::thread::Builder::new()
             .name("emulation".into())
             .spawn(move || {
@@ -532,6 +537,7 @@ impl App {
                     cmd_rx,
                     frame_tx,
                     emu_err_tx,
+                    power_save,
                 );
             })
             .expect("Failed to spawn emulation thread");
@@ -549,6 +555,7 @@ impl App {
             current_width: initial_width,
             current_height: initial_height,
             debug_mode: config.debug_mode,
+            power_save,
             paused: false,
             f9_pressed_since: None,
             is_fast_forwarding: false,
@@ -815,7 +822,13 @@ impl ApplicationHandler for App {
             }
         }
 
-        event_loop.set_control_flow(ControlFlow::Poll);
+        if self.power_save {
+            event_loop.set_control_flow(ControlFlow::WaitUntil(
+                Instant::now() + Duration::from_millis(POWER_SAVE_SLEEP_MS),
+            ));
+        } else {
+            event_loop.set_control_flow(ControlFlow::Poll);
+        }
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
@@ -841,6 +854,7 @@ fn run_emulation(
     cmd_rx: Receiver<EmulationCommand>,
     frame_tx: Sender<EmulationFrame>,
     emu_err_tx: Sender<EmulationError>,
+    power_save: bool,
 ) {
     let mut midi_stream = midly::stream::MidiStream::new();
 
@@ -991,7 +1005,11 @@ fn run_emulation(
         }
 
         if audio_tx.len() >= latency_samples {
-            std::thread::yield_now();
+            if power_save {
+                std::thread::sleep(Duration::from_millis(POWER_SAVE_SLEEP_MS));
+            } else {
+                std::thread::yield_now();
+            }
             continue;
         }
 
