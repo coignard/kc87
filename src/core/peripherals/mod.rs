@@ -15,8 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+pub mod disk;
 pub mod keyboard;
 pub mod midi;
+pub mod tape;
 
 use serde::Serialize;
 
