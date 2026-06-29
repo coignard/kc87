@@ -18,6 +18,7 @@
 mod app;
 
 use std::fs;
+use std::path::Path;
 
 use anyhow::{Context, Result, ensure};
 use clap::{CommandFactory, FromArgMatches, Parser, ValueEnum};
@@ -34,6 +35,7 @@ use kc87::core::debug::{ReplayMetadata, ReplayModule, ReplayPlayer, ReplayRecord
 use kc87::core::machine::{
     GraphicsModule, Hardware, LoadFormat, MachineType, ModulePreload, RamSize,
 };
+use kc87::core::peripherals::disk::{self, DiskFormat};
 use kc87::core::video::VideoRenderer;
 
 const KC87_OS_ROM: &[u8] = include_bytes!("../firmware/kc87/os.rom");
@@ -271,6 +273,53 @@ impl From<TapeSourceArg> for TapeSource {
     }
 }
 
+#[derive(Copy, Clone, Debug, ValueEnum)]
+enum FloppyFormatArg {
+    #[value(name = "llc2-400k")]
+    Llc2400K,
+    #[value(name = "pcm-624k")]
+    Pcm624K,
+    #[value(name = "mldos-702k")]
+    Mldos702K,
+    #[value(name = "basdos-711k")]
+    Basdos711K,
+    #[value(name = "a5105-720k")]
+    A5105720K,
+    #[value(name = "caos-780k")]
+    Caos780K,
+    #[value(name = "scpx-780k")]
+    Scpx780K,
+    #[value(name = "microdos-780k")]
+    Microdos780K,
+    #[value(name = "z9001-800k")]
+    Z9001800K,
+    #[value(name = "msdos-1200k")]
+    Msdos1200K,
+    #[value(name = "msdos-1440k")]
+    Msdos1440K,
+    #[value(name = "mldos-1738k")]
+    Mldos1738K,
+}
+
+impl From<FloppyFormatArg> for DiskFormat {
+    fn from(arg: FloppyFormatArg) -> Self {
+        match arg {
+            FloppyFormatArg::Llc2400K => DiskFormat::LLC2_400K,
+            FloppyFormatArg::Pcm624K => DiskFormat::PCM_624K,
+            FloppyFormatArg::Mldos702K => DiskFormat::MLDOS_702K_I3,
+            FloppyFormatArg::Basdos711K => DiskFormat::BASDOS_711K_I5,
+            FloppyFormatArg::A5105720K => DiskFormat::A5105_720K,
+            FloppyFormatArg::Caos780K => DiskFormat::CAOS_780K,
+            FloppyFormatArg::Scpx780K => DiskFormat::SCPX_780K_I2,
+            FloppyFormatArg::Microdos780K => DiskFormat::MICRODOS_780K_I3,
+            FloppyFormatArg::Z9001800K => DiskFormat::CPA_800K,
+            FloppyFormatArg::Msdos1200K => DiskFormat::MSDOS_1200K,
+            FloppyFormatArg::Msdos1440K => DiskFormat::MSDOS_1440K,
+            FloppyFormatArg::Mldos1738K => DiskFormat::MLDOS_1738K_I3,
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(
     name = "kc87",
@@ -457,6 +506,29 @@ struct Args {
     #[arg(long, help_heading = "Tape options")]
     tape_input_list: bool,
 
+    /// Floppy disk image for drive A
+    /// Possible values: raw, AnaDisk, CopyQM, CPC DSK, ImageDisk, TeleDisk
+    #[arg(
+        long,
+        value_name = "image",
+        help_heading = "Floppy options",
+        verbatim_doc_comment
+    )]
+    floppy: Option<String>,
+
+    /// Disk geometry for raw images
+    /// Default: z9001-800k
+    #[arg(
+        long,
+        value_enum,
+        value_name = "format",
+        default_value_t = FloppyFormatArg::Z9001800K,
+        hide_default_value = true,
+        help_heading = "Floppy options",
+        verbatim_doc_comment
+    )]
+    floppy_format: FloppyFormatArg,
+
     /// Connect to a MIDI output port by name or index
     /// Default: first available port
     #[arg(
@@ -528,6 +600,7 @@ fn main() -> Result<()> {
                 graphics: m.graphics,
                 c80: m.c80,
                 rtc: m.rtc,
+                floppy: m.floppy,
             }
         }
         None => Hardware {
@@ -536,6 +609,7 @@ fn main() -> Result<()> {
             graphics: args.graphics.map(GraphicsModule::from).unwrap_or_default(),
             c80: args.col80,
             rtc: args.rtc,
+            floppy: args.floppy.is_some(),
         },
     };
 
@@ -738,6 +812,31 @@ fn main() -> Result<()> {
 
     let midi_enabled = midi_conn.is_some() || args.midi.is_some();
 
+    let mut floppy_image_name = None;
+    let mut floppy_image_sha256 = None;
+    let mut floppy_format_name = None;
+    let floppy_disk = match &args.floppy {
+        Some(path) => {
+            let data =
+                fs::read(path).with_context(|| format!("could not read disk image '{path}'"))?;
+            let extension = Path::new(path).extension().and_then(|ext| ext.to_str());
+            let raw_format = DiskFormat::from(args.floppy_format);
+            floppy_image_name = Path::new(path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map(str::to_string);
+            floppy_image_sha256 = Some(hex::encode(Sha256::digest(&data)));
+            floppy_format_name = args
+                .floppy_format
+                .to_possible_value()
+                .map(|value| value.get_name().to_string());
+            let disk = disk::load_image(data, extension, raw_format, false)
+                .with_context(|| format!("could not load disk image '{path}'"))?;
+            Some(disk)
+        }
+        None => None,
+    };
+
     let machine_config = MachineConfig {
         machine_type,
         hardware,
@@ -752,6 +851,7 @@ fn main() -> Result<()> {
         autorun,
         program_name,
         midi_enabled,
+        floppy_disk,
     };
 
     let recorder = args.record.then(|| {
@@ -766,6 +866,10 @@ fn main() -> Result<()> {
             graphics: hardware.graphics,
             c80: hardware.c80,
             rtc: hardware.rtc,
+            floppy: hardware.floppy,
+            floppy_image: floppy_image_name,
+            floppy_image_sha256,
+            floppy_format: floppy_format_name,
             payload_format: program_format,
             rom_module: rom_module_name,
             rom_module_sha256,
