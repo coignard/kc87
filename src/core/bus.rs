@@ -24,12 +24,14 @@ use crossbeam_channel::Receiver;
 use crate::core::chips::rtc7242x::Rtc7242x;
 use crate::core::chips::u855::{self, U855};
 use crate::core::chips::u857::{self, U857};
+use crate::core::chips::u8272::U8272;
 use crate::core::machine::{
     FRAME_RATE_HZ, GraphicsModule, Hardware, MASTER_CLOCK_HZ, MachineType, RamSize,
 };
 use crate::core::peripherals::UserPeripheral;
+use crate::core::peripherals::disk::FloppyDisk;
 use crate::core::peripherals::keyboard::Keyboard;
-use crate::core::tape::TapeTract;
+use crate::core::peripherals::tape::TapeTract;
 
 const CURSOR_BLINK_INTERVAL_MS: u32 = 200;
 const BLINK_TOGGLE_CYCLES: u32 = MASTER_CLOCK_HZ * CURSOR_BLINK_INTERVAL_MS / 1000;
@@ -74,6 +76,12 @@ mod ports {
     pub const GRAPH_CONTROL: u8 = 0xB8;
     pub const GRAPH_ADDR_LOW: u8 = 0xB9;
     pub const GRAPH_PIXEL: u8 = 0xBA;
+    pub const FDC_BASE: u8 = 0x98;
+    pub const FDC_PORT_MASK: u8 = 0xF8;
+    pub const FDC_DATA_SELECT: u8 = 0x01;
+    pub const FDC_CONTROL_BASE: u8 = 0xA0;
+    pub const FDC_CONTROL_TC: u8 = 0x10;
+    pub const FDC_CONTROL_RESET: u8 = 0x20;
 }
 
 const RAM_LAYER: usize = 0;
@@ -120,6 +128,9 @@ const KBD_STICKY_FRAMES: u32 = 3;
 const RAM_TOP_16K: u32 = 0x4000;
 const RAM_TOP_32K: u32 = 0x8000;
 const RAM_TOP_48K: u32 = 0xC000;
+
+const FDC_MHZ: u32 = 4;
+const MILLIS_PER_SECOND: u32 = 1000;
 
 fn serialize_ram_hash<S: serde::Serializer>(
     ram: &[u8; 65536],
@@ -274,6 +285,13 @@ pub struct Bus {
 
     #[serde(skip)]
     pub rtc: Option<Rtc7242x>,
+
+    #[serde(skip)]
+    pub fdc: Option<U8272>,
+    #[serde(skip)]
+    fdc_terminal_count: bool,
+    #[serde(skip)]
+    fdc_reset_line: bool,
 
     pub keyboard: Keyboard,
 
@@ -488,6 +506,15 @@ impl Bus {
             } else {
                 None
             },
+            fdc: if hardware.floppy {
+                let mut fdc = U8272::new(FDC_MHZ);
+                fdc.set_tstates_per_milli(MASTER_CLOCK_HZ / MILLIS_PER_SECOND);
+                Some(fdc)
+            } else {
+                None
+            },
+            fdc_terminal_count: false,
+            fdc_reset_line: false,
             keyboard,
             user_slot: UserPeripheral::None,
             blink_flip_flop: 0,
@@ -536,6 +563,12 @@ impl Bus {
         self.tape_sample_rate = sample_rate;
         self.tape_acc = 0;
         self.tape_tract = TapeTract::new();
+    }
+
+    pub fn insert_disk(&mut self, drive_num: usize, disk: FloppyDisk) {
+        if let Some(fdc) = &mut self.fdc {
+            fdc.insert_disk(drive_num, disk);
+        }
     }
 
     #[inline]
@@ -776,7 +809,7 @@ impl Bus {
         }
         self.prev_user_write = user_write;
 
-        if self.ram64k_module && (pins & (pins::IORQ | pins::M1 | pins::RD)) == pins::IORQ {
+        if self.ram64k_module && (pins & (pins::IORQ | pins::M1)) == pins::IORQ {
             match (pins::addr(pins) & PORT_ADDR_MASK) as u8 {
                 ports::RAM64K_SEG1_OFF => self.ram_4000_seg1 = false,
                 ports::RAM64K_SEG1_ON => self.ram_4000_seg1 = true,
@@ -788,8 +821,10 @@ impl Bus {
 
         if self.c80_enabled && (pins & (pins::IORQ | pins::M1 | pins::RD)) == pins::IORQ {
             match (pins::addr(pins) & PORT_ADDR_MASK) as u8 {
-                ports::C80_SWAP_OFF | ports::C80_SWAP_OFF_ALT => self.c80_memswap = false,
-                ports::C80_SWAP_ON | ports::C80_SWAP_ON_ALT => self.c80_memswap = true,
+                ports::C80_SWAP_OFF if self.fdc.is_none() => self.c80_memswap = false,
+                ports::C80_SWAP_ON if self.fdc.is_none() => self.c80_memswap = true,
+                ports::C80_SWAP_OFF_ALT => self.c80_memswap = false,
+                ports::C80_SWAP_ON_ALT => self.c80_memswap = true,
                 ports::C80_WIDE_OFF | ports::C80_WIDE_OFF_ALT => self.c80_active = false,
                 ports::C80_WIDE_ON | ports::C80_WIDE_ON_ALT => self.c80_active = true,
                 _ => {}
@@ -851,6 +886,40 @@ impl Bus {
             } else {
                 rtc.write(reg, pins::data(pins));
             }
+        }
+
+        if let Some(fdc) = &mut self.fdc
+            && (pins & (pins::IORQ | pins::M1)) == pins::IORQ
+        {
+            let port = (pins::addr(pins) & PORT_ADDR_MASK) as u8;
+            let reading = (pins & pins::RD) != 0;
+            if (port & ports::FDC_PORT_MASK) == ports::FDC_BASE {
+                if (port & ports::FDC_DATA_SELECT) != 0 {
+                    if reading {
+                        pins = pins::set_data(pins, fdc.read_data());
+                    } else {
+                        fdc.write(pins::data(pins));
+                    }
+                } else if reading {
+                    pins = pins::set_data(pins, fdc.read_main_status_reg());
+                }
+            } else if !reading && (port & ports::FDC_PORT_MASK) == ports::FDC_CONTROL_BASE {
+                let value = pins::data(pins);
+                let terminal_count = (value & ports::FDC_CONTROL_TC) != 0;
+                if terminal_count && !self.fdc_terminal_count {
+                    fdc.fire_tc();
+                }
+                let reset_line = (value & ports::FDC_CONTROL_RESET) != 0;
+                if reset_line && !self.fdc_reset_line {
+                    fdc.reset(false);
+                }
+                self.fdc_terminal_count = terminal_count;
+                self.fdc_reset_line = reset_line;
+            }
+        }
+
+        if let Some(fdc) = &mut self.fdc {
+            fdc.tick();
         }
 
         if self.graph_type != GraphicsModule::None && (pins & (pins::IORQ | pins::M1)) == pins::IORQ
