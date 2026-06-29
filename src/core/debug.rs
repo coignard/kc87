@@ -49,6 +49,14 @@ pub struct ReplayMetadata {
     #[serde(default)]
     pub rtc: bool,
     #[serde(default)]
+    pub floppy: bool,
+    #[serde(default)]
+    pub floppy_image: Option<String>,
+    #[serde(default)]
+    pub floppy_image_sha256: Option<String>,
+    #[serde(default)]
+    pub floppy_format: Option<String>,
+    #[serde(default)]
     pub payload_format: LoadFormat,
     #[serde(default)]
     pub rom_module: Option<String>,
