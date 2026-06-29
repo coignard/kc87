@@ -188,7 +188,7 @@ class Reader:
         end = self.pos + length
         if end > len(self.data):
             raise FormatError("unexpected end of image")
-        slice_ = self.data[self.pos:end]
+        slice_ = self.data[self.pos : end]
         self.pos = end
         return slice_
 
@@ -244,7 +244,7 @@ def disk_from_raw(data, fmt):
                         head,
                         logical + 1,
                         size_code,
-                        sized_buffer(size_code, data[start:start + sector_size]),
+                        sized_buffer(size_code, data[start : start + sector_size]),
                     )
                 )
             tracks[(cyl, head)] = sectors
@@ -260,7 +260,7 @@ def raw_from_disk(disk):
 
 
 def maybe_gunzip(data):
-    if data[:len(GZIP_MAGIC)] == GZIP_MAGIC:
+    if data[: len(GZIP_MAGIC)] == GZIP_MAGIC:
         try:
             return gzip.decompress(data)
         except OSError:
@@ -269,11 +269,14 @@ def maybe_gunzip(data):
 
 
 def detect_kind(data, suffix):
-    if data[:len(COPYQM_MAGIC)] == COPYQM_MAGIC:
+    if data[: len(COPYQM_MAGIC)] == COPYQM_MAGIC:
         return "copyqm"
-    if data[:len(IMAGEDISK_MAGIC)] == IMAGEDISK_MAGIC:
+    if data[: len(IMAGEDISK_MAGIC)] == IMAGEDISK_MAGIC:
         return "imagedisk"
-    if data[:len(CPC_HEADER_STD)] == CPC_HEADER_STD or data[:len(CPC_HEADER_EXT)] == CPC_HEADER_EXT:
+    if (
+        data[: len(CPC_HEADER_STD)] == CPC_HEADER_STD
+        or data[: len(CPC_HEADER_EXT)] == CPC_HEADER_EXT
+    ):
         return "cpcdisk"
     if data[:2] == TELEDISK_MAGIC_PLAIN or data[:2] == TELEDISK_MAGIC_PACKED:
         return "teledisk"
@@ -301,7 +304,13 @@ def parse_anadisk(data):
         builder.add(
             phys_cyl,
             phys_head,
-            sector(id_cyl, id_head, id_record, id_size_code, sized_buffer(id_size_code, payload)),
+            sector(
+                id_cyl,
+                id_head,
+                id_record,
+                id_size_code,
+                sized_buffer(id_size_code, payload),
+            ),
         )
     return builder.finish()
 
@@ -322,8 +331,12 @@ def parse_imagedisk(data):
             raise FormatError(f"IMD sector size code {size_code}")
         sector_size = size_by_size_code(size_code)
         sector_nums = reader.take(sector_count)
-        sector_cyls = reader.take(sector_count) if head_flags & IMD_HEAD_CYL_MAP else None
-        sector_heads = reader.take(sector_count) if head_flags & IMD_HEAD_HEAD_MAP else None
+        sector_cyls = (
+            reader.take(sector_count) if head_flags & IMD_HEAD_CYL_MAP else None
+        )
+        sector_heads = (
+            reader.take(sector_count) if head_flags & IMD_HEAD_HEAD_MAP else None
+        )
         phys_head = head_flags & IMD_HEAD_NUMBER_MASK
         for index in range(sector_count):
             sector_type = reader.byte()
@@ -357,10 +370,12 @@ def parse_cpcdisk(data):
     if len(data) < CPC_FILE_HEADER_LEN:
         raise FormatError("truncated CPC image")
     header = data[:CPC_FILE_HEADER_LEN]
-    extended = header[:len(CPC_HEADER_EXT)] == CPC_HEADER_EXT
+    extended = header[: len(CPC_HEADER_EXT)] == CPC_HEADER_EXT
     cyls = header[CPC_CYL_COUNT_OFFSET]
     sides = header[CPC_SIDE_COUNT_OFFSET]
-    std_track_size = header[CPC_STD_TRACK_SIZE_OFFSET] | (header[CPC_STD_TRACK_SIZE_OFFSET + 1] << 8)
+    std_track_size = header[CPC_STD_TRACK_SIZE_OFFSET] | (
+        header[CPC_STD_TRACK_SIZE_OFFSET + 1] << 8
+    )
     reader = Reader(data)
     reader.take(CPC_FILE_HEADER_LEN)
     builder = Builder()
@@ -368,7 +383,7 @@ def parse_cpcdisk(data):
         if reader.remaining() < CPC_TRACK_HEADER_LEN:
             break
         track_header = reader.take(CPC_TRACK_HEADER_LEN)
-        if track_header[:len(CPC_TRACK_HEADER)] != CPC_TRACK_HEADER:
+        if track_header[: len(CPC_TRACK_HEADER)] != CPC_TRACK_HEADER:
             break
         if extended:
             entry = CPC_EXT_TRACK_SIZE_TABLE + track_index
@@ -383,7 +398,11 @@ def parse_cpcdisk(data):
         if track_size_code > MAX_SIZE_CODE:
             break
         sector_count = track_header[CPC_TRACK_SECTOR_COUNT_OFFSET]
-        track_buf = reader.take(track_size - CPC_TRACK_HEADER_LEN) if track_size > CPC_TRACK_HEADER_LEN else b""
+        track_buf = (
+            reader.take(track_size - CPC_TRACK_HEADER_LEN)
+            if track_size > CPC_TRACK_HEADER_LEN
+            else b""
+        )
         info_pos = CPC_TRACK_SECTOR_LIST_OFFSET
         data_pos = 0
         for _ in range(sector_count):
@@ -394,7 +413,9 @@ def parse_cpcdisk(data):
             id_record = track_header[info_pos + 2]
             id_size_code = track_header[info_pos + 3]
             if extended:
-                stored_len = track_header[info_pos + 6] | (track_header[info_pos + 7] << 8)
+                stored_len = track_header[info_pos + 6] | (
+                    track_header[info_pos + 7] << 8
+                )
             elif track_size_code == MAX_SIZE_CODE:
                 stored_len = CPC_BIG_SECTOR_SIZE
             else:
@@ -402,9 +423,11 @@ def parse_cpcdisk(data):
             info_pos += CPC_SECTOR_INFO_LEN
             available = max(len(track_buf) - data_pos, 0)
             copy = min(stored_len, available)
-            payload = sized_buffer(id_size_code, track_buf[data_pos:data_pos + copy])
+            payload = sized_buffer(id_size_code, track_buf[data_pos : data_pos + copy])
             data_pos += stored_len
-            builder.add(cyl, side, sector(id_cyl, id_head, id_record, id_size_code, payload))
+            builder.add(
+                cyl, side, sector(id_cyl, id_head, id_record, id_size_code, payload)
+            )
     return builder.finish()
 
 
@@ -462,11 +485,15 @@ def parse_copyqm(data):
         for head in range(sides):
             for sector_idx in range(sectors_per_track):
                 start = block * sector_size
-                payload = sized_buffer(size_code, disk_bytes[start:start + sector_size])
+                payload = sized_buffer(
+                    size_code, disk_bytes[start : start + sector_size]
+                )
                 builder.add(
                     cyl,
                     head,
-                    sector(cyl, head, sector_idx + 1 + sector_offset, size_code, payload),
+                    sector(
+                        cyl, head, sector_idx + 1 + sector_offset, size_code, payload
+                    ),
                 )
                 block += 1
     return builder.finish()
@@ -633,7 +660,7 @@ def write_imagedisk(disk):
 
 def write_cpcdisk(disk):
     header = bytearray(CPC_FILE_HEADER_LEN)
-    header[:len(CPC_STD_BANNER)] = CPC_STD_BANNER
+    header[: len(CPC_STD_BANNER)] = CPC_STD_BANNER
     header[CPC_CYL_COUNT_OFFSET] = disk.cylinders
     header[CPC_SIDE_COUNT_OFFSET] = disk.sides
 
@@ -641,7 +668,7 @@ def write_cpcdisk(disk):
     track_size = 0
     for cyl, head, sectors in disk.ordered_tracks():
         track_header = bytearray(CPC_TRACK_HEADER_LEN)
-        track_header[:len(CPC_TRACK_HEADER)] = CPC_TRACK_HEADER
+        track_header[: len(CPC_TRACK_HEADER)] = CPC_TRACK_HEADER
         track_header[CPC_TRACK_CYL_OFFSET] = cyl
         track_header[CPC_TRACK_SIDE_OFFSET] = head
         size_code = sectors[0]["size_code"] if sectors else 0
@@ -674,7 +701,7 @@ def write_copyqm(disk, fmt):
     _cylinders, _sides, sectors_per_track, sector_size, _interleave = fmt
     image = raw_from_disk(disk)
     header = bytearray(COPYQM_HEADER_LEN)
-    header[:len(COPYQM_MAGIC)] = COPYQM_MAGIC
+    header[: len(COPYQM_MAGIC)] = COPYQM_MAGIC
     header[COPYQM_SECTOR_SIZE_OFFSET] = sector_size & 0xFF
     header[COPYQM_SECTOR_SIZE_OFFSET + 1] = (sector_size >> 8) & 0xFF
     header[COPYQM_SECTORS_PER_TRACK_OFFSET] = sectors_per_track & 0xFF
@@ -691,7 +718,11 @@ def rle_encode_copyqm(data):
     length = len(data)
     while pos < length:
         run = 1
-        while pos + run < length and data[pos + run] == data[pos] and run < COPYQM_MAX_CHUNK:
+        while (
+            pos + run < length
+            and data[pos + run] == data[pos]
+            and run < COPYQM_MAX_CHUNK
+        ):
             run += 1
         if run >= 2:
             encoded = (COPYQM_RUN_MODULO - run) & 0xFFFF
@@ -711,7 +742,7 @@ def rle_encode_copyqm(data):
 
 def write_teledisk(disk):
     header = bytearray(TELEDISK_HEADER_LEN)
-    header[:len(TELEDISK_MAGIC_PLAIN)] = TELEDISK_MAGIC_PLAIN
+    header[: len(TELEDISK_MAGIC_PLAIN)] = TELEDISK_MAGIC_PLAIN
     header[TELEDISK_VERSION_OFFSET] = TELEDISK_SUPPORTED_VERSION
     out = bytearray(header)
     for cyl, head, sectors in disk.ordered_tracks():
@@ -728,7 +759,9 @@ def write_teledisk(disk):
                 )
             )
             block_len = len(sec["data"]) + 1
-            out += bytes((block_len & 0xFF, (block_len >> 8) & 0xFF, TELEDISK_ENCODING_RAW))
+            out += bytes(
+                (block_len & 0xFF, (block_len >> 8) & 0xFF, TELEDISK_ENCODING_RAW)
+            )
             out += sec["data"]
     out.append(TELEDISK_SECTOR_PHANTOM)
     return bytes(out)
@@ -992,7 +1025,9 @@ def main():
             arguments.input, arguments.output or default_output(arguments.input, ".img")
         )
     else:
-        output = arguments.output or default_output(arguments.input, DEFAULT_CONTAINER_SUFFIX)
+        output = arguments.output or default_output(
+            arguments.input, DEFAULT_CONTAINER_SUFFIX
+        )
         if suffix_of(output) not in CONTAINER_BY_SUFFIX:
             parser.error(f"unknown container extension for '{output}'")
         encode_to_container(arguments.input, output, arguments.format)

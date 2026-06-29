@@ -89,8 +89,8 @@ def clean_name(raw):
 
 
 def entry_filename(entry):
-    name = clean_name(entry[NAME_OFFSET:NAME_OFFSET + NAME_LEN])
-    ext = clean_name(entry[EXT_OFFSET:EXT_OFFSET + EXT_LEN])
+    name = clean_name(entry[NAME_OFFSET : NAME_OFFSET + NAME_LEN])
+    ext = clean_name(entry[EXT_OFFSET : EXT_OFFSET + EXT_LEN])
     return f"{name}.{ext}" if ext else name
 
 
@@ -106,18 +106,18 @@ def entry_block_pointers(entry, block_num_16bit):
         for index in range(BLOCK_LIST_OFFSET, BLOCK_LIST_OFFSET + BLOCK_LIST_LEN, 2):
             pointers.append(entry[index] | (entry[index + 1] << 8))
     else:
-        pointers = list(entry[BLOCK_LIST_OFFSET:BLOCK_LIST_OFFSET + BLOCK_LIST_LEN])
+        pointers = list(entry[BLOCK_LIST_OFFSET : BLOCK_LIST_OFFSET + BLOCK_LIST_LEN])
     return pointers
 
 
 def data_area(image, params):
     _size, block_size, _dir_blocks, _block_num_16bit, sys_tracks = params
-    return image[sys_tracks * block_size:] if sys_tracks else image
+    return image[sys_tracks * block_size :] if sys_tracks else image
 
 
 def read_block(data, block_size, block):
     start = block * block_size
-    return data[start:start + block_size]
+    return data[start : start + block_size]
 
 
 def parse_directory(image, params):
@@ -127,7 +127,7 @@ def parse_directory(image, params):
     files = {}
     order = []
     for pos in range(0, len(directory), DIR_ENTRY_LEN):
-        entry = directory[pos:pos + DIR_ENTRY_LEN]
+        entry = directory[pos : pos + DIR_ENTRY_LEN]
         user = entry[0]
         if user > MAX_USER:
             continue
@@ -140,7 +140,11 @@ def parse_directory(image, params):
             (
                 entry_extent_number(entry),
                 entry[RECORD_COUNT_OFFSET],
-                [block for block in entry_block_pointers(entry, block_num_16bit) if block],
+                [
+                    block
+                    for block in entry_block_pointers(entry, block_num_16bit)
+                    if block
+                ],
                 decode_attributes(entry),
             )
         )
@@ -185,16 +189,18 @@ def split_filename(filename):
     return stem[:NAME_LEN].upper(), ext[:EXT_LEN].upper()
 
 
-def build_entry(user, filename, attributes, extent_number, record_count, blocks, block_num_16bit):
+def build_entry(
+    user, filename, attributes, extent_number, record_count, blocks, block_num_16bit
+):
     entry = bytearray([0x00] * DIR_ENTRY_LEN)
     entry[0] = user
     name, ext = split_filename(filename)
-    entry[NAME_OFFSET:NAME_OFFSET + NAME_LEN] = name.ljust(NAME_LEN).encode("latin-1")
+    entry[NAME_OFFSET : NAME_OFFSET + NAME_LEN] = name.ljust(NAME_LEN).encode("latin-1")
     ext_bytes = bytearray(ext.ljust(EXT_LEN).encode("latin-1"))
     for (_letter, index), flag in zip(ATTR_FLAGS, attributes):
         if flag:
             ext_bytes[index] |= ATTR_BIT
-    entry[EXT_OFFSET:EXT_OFFSET + EXT_LEN] = ext_bytes
+    entry[EXT_OFFSET : EXT_OFFSET + EXT_LEN] = ext_bytes
     entry[EXTENT_LOW_OFFSET] = extent_number & EXTENT_LOW_MASK
     entry[RESERVED_OFFSET] = 0
     entry[EXTENT_HIGH_OFFSET] = (extent_number >> EXTENT_HIGH_SHIFT) & 0x3F
@@ -209,7 +215,9 @@ def build_entry(user, filename, attributes, extent_number, record_count, blocks,
     return bytes(entry)
 
 
-def file_entries(user, filename, attributes, records, blocks, block_size, block_num_16bit):
+def file_entries(
+    user, filename, attributes, records, blocks, block_size, block_num_16bit
+):
     entries = []
     pointers_per_extent = block_pointer_count(block_num_16bit)
     blocks_each = blocks_per_extent(block_size, block_num_16bit)
@@ -218,7 +226,7 @@ def file_entries(user, filename, attributes, records, blocks, block_size, block_
     remaining = records
     while True:
         extent_records = min(remaining, RECORDS_PER_EXTENT)
-        extent_blocks = blocks[consumed:consumed + blocks_each][:pointers_per_extent]
+        extent_blocks = blocks[consumed : consumed + blocks_each][:pointers_per_extent]
         entries.append(
             build_entry(
                 user,
@@ -244,7 +252,11 @@ def read_manifest(in_dir):
         return None
     data = json.loads(path.read_text(encoding="latin-1"))
     listing = [
-        (entry.get("user", 0), entry["name"], attributes_from_text(entry.get("flags", "")))
+        (
+            entry.get("user", 0),
+            entry["name"],
+            attributes_from_text(entry.get("flags", "")),
+        )
         for entry in data.get("files", [])
     ]
     return data.get("format"), listing
@@ -257,7 +269,7 @@ def discover_files(in_dir):
             listing.append((0, entry.name, (False, False, False)))
     for sub in sorted(in_dir.iterdir(), key=lambda item: item.name.lower()):
         if sub.is_dir() and sub.name.startswith(USER_DIR_PREFIX):
-            user = int(sub.name[len(USER_DIR_PREFIX):])
+            user = int(sub.name[len(USER_DIR_PREFIX) :])
             for entry in sorted(sub.iterdir(), key=lambda item: item.name.lower()):
                 if entry.is_file():
                     listing.append((user, entry.name, (False, False, False)))
@@ -292,14 +304,18 @@ def repack(in_dir, params, listing):
     for user, filename, attributes in listing:
         content = resolve_path(in_dir, user, filename).read_bytes()
         records = (len(content) + RECORD_SIZE - 1) // RECORD_SIZE
-        block_count = (records + records_per_block(block_size) - 1) // records_per_block(block_size)
+        block_count = (
+            records + records_per_block(block_size) - 1
+        ) // records_per_block(block_size)
         if free_block + block_count > total_blocks:
             raise FilesystemError("image is full")
         blocks = list(range(free_block, free_block + block_count))
         start = data_offset + free_block * block_size
-        image[start:start + len(content)] = content
+        image[start : start + len(content)] = content
         slack_end = start + block_count * block_size
-        image[start + len(content):slack_end] = bytes(slack_end - start - len(content))
+        image[start + len(content) : slack_end] = bytes(
+            slack_end - start - len(content)
+        )
         free_block += block_count
         directory += b"".join(
             file_entries(
@@ -311,7 +327,7 @@ def repack(in_dir, params, listing):
         raise FilesystemError(
             f"directory needs {len(directory) // DIR_ENTRY_LEN} entries, only {max_dir_entries} fit"
         )
-    image[data_offset:data_offset + len(directory)] = directory
+    image[data_offset : data_offset + len(directory)] = directory
     return bytes(image)
 
 
@@ -351,12 +367,16 @@ def main():
         if name not in CPM_FORMATS:
             parser.error(f"unknown disk format '{name}'")
         listing = manifest[1] if manifest else None
-        output = Path(arguments.output) if arguments.output else source.with_suffix(".img")
+        output = (
+            Path(arguments.output) if arguments.output else source.with_suffix(".img")
+        )
         output.write_bytes(repack(source, CPM_FORMATS[name], listing))
     else:
         image = source.read_bytes()
         name, params = select_format(arguments.format, len(image))
-        output = Path(arguments.output) if arguments.output else source.with_suffix(".dir")
+        output = (
+            Path(arguments.output) if arguments.output else source.with_suffix(".dir")
+        )
         unpack(image, name, params, output)
 
 
