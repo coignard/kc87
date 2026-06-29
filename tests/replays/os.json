@@ -1,0 +1,320 @@
+{
+  "metadata": {
+    "program": "os",
+    "program_sha256": "22948c0d106c505c80150b6bfefbf725d59748c372a1de5134f60b56b6ad119f",
+    "autorun": false,
+    "sample_rate": 48000,
+    "machine_type": "KC87",
+    "ram": "K64",
+    "chargen": false,
+    "graphics": "None",
+    "c80": false,
+    "rtc": false,
+    "floppy": true,
+    "floppy_image": "cpa-sys.img",
+    "floppy_image_sha256": "c25e3614c4e6dbbee05cc6e6c9ca32b1b2de85d8ecd719f3f2238a0cfbe517ef",
+    "floppy_format": "z9001-800k",
+    "payload_format": "auto",
+    "rom_module": "bootrom.bin",
+    "rom_module_sha256": "6a8661c2e2df0d66c76ce43fc6e2ff49d346c50081e3eb35d4a4d5bff0ac33c4",
+    "modules": []
+  },
+  "events": [
+    {
+      "frame": 5799936,
+      "action": {
+        "KeyDown": {
+          "key": "B"
+        }
+      }
+    },
+    {
+      "frame": 6045696,
+      "action": {
+        "KeyUp": {
+          "key": "B"
+        }
+      }
+    },
+    {
+      "frame": 6438912,
+      "action": {
+        "KeyDown": {
+          "key": "O"
+        }
+      }
+    },
+    {
+      "frame": 6537216,
+      "action": {
+        "KeyUp": {
+          "key": "O"
+        }
+      }
+    },
+    {
+      "frame": 6881280,
+      "action": {
+        "KeyDown": {
+          "key": "O"
+        }
+      }
+    },
+    {
+      "frame": 7077888,
+      "action": {
+        "KeyUp": {
+          "key": "O"
+        }
+      }
+    },
+    {
+      "frame": 7323648,
+      "action": {
+        "KeyDown": {
+          "key": "T"
+        }
+      }
+    },
+    {
+      "frame": 7520256,
+      "action": {
+        "KeyUp": {
+          "key": "T"
+        }
+      }
+    },
+    {
+      "frame": 9142272,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 9338880,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 14696448,
+      "action": {
+        "TakeSnapshot": {
+          "name": "os_frame_14696448"
+        }
+      }
+    },
+    {
+      "frame": 18284544,
+      "action": {
+        "TakeSnapshot": {
+          "name": "os_frame_18284544"
+        }
+      }
+    },
+    {
+      "frame": 21528576,
+      "action": {
+        "TakeSnapshot": {
+          "name": "os_frame_21528576"
+        }
+      }
+    },
+    {
+      "frame": 28901376,
+      "action": {
+        "KeyDown": {
+          "key": "LowerD"
+        }
+      }
+    },
+    {
+      "frame": 29196288,
+      "action": {
+        "KeyUp": {
+          "key": "LowerD"
+        }
+      }
+    },
+    {
+      "frame": 29589504,
+      "action": {
+        "KeyDown": {
+          "key": "LowerI"
+        }
+      }
+    },
+    {
+      "frame": 29786112,
+      "action": {
+        "KeyUp": {
+          "key": "LowerI"
+        }
+      }
+    },
+    {
+      "frame": 30081024,
+      "action": {
+        "KeyDown": {
+          "key": "LowerR"
+        }
+      }
+    },
+    {
+      "frame": 30277632,
+      "action": {
+        "KeyUp": {
+          "key": "LowerR"
+        }
+      }
+    },
+    {
+      "frame": 32145408,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 32342016,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 36077568,
+      "action": {
+        "TakeSnapshot": {
+          "name": "os_frame_36077568"
+        }
+      }
+    },
+    {
+      "frame": 37896192,
+      "action": {
+        "KeyDown": {
+          "key": "LowerC"
+        }
+      }
+    },
+    {
+      "frame": 38191104,
+      "action": {
+        "KeyUp": {
+          "key": "LowerC"
+        }
+      }
+    },
+    {
+      "frame": 38387712,
+      "action": {
+        "KeyDown": {
+          "key": "LowerL"
+        }
+      }
+    },
+    {
+      "frame": 38584320,
+      "action": {
+        "KeyUp": {
+          "key": "LowerL"
+        }
+      }
+    },
+    {
+      "frame": 38731776,
+      "action": {
+        "KeyDown": {
+          "key": "LowerO"
+        }
+      }
+    },
+    {
+      "frame": 38977536,
+      "action": {
+        "KeyUp": {
+          "key": "LowerO"
+        }
+      }
+    },
+    {
+      "frame": 39075840,
+      "action": {
+        "KeyDown": {
+          "key": "LowerC"
+        }
+      }
+    },
+    {
+      "frame": 39370752,
+      "action": {
+        "KeyUp": {
+          "key": "LowerC"
+        }
+      }
+    },
+    {
+      "frame": 39370752,
+      "action": {
+        "KeyDown": {
+          "key": "LowerK"
+        }
+      }
+    },
+    {
+      "frame": 39616512,
+      "action": {
+        "KeyUp": {
+          "key": "LowerK"
+        }
+      }
+    },
+    {
+      "frame": 40845312,
+      "action": {
+        "KeyDown": {
+          "key": "LowerK"
+        }
+      }
+    },
+    {
+      "frame": 41091072,
+      "action": {
+        "KeyUp": {
+          "key": "LowerK"
+        }
+      }
+    },
+    {
+      "frame": 42319872,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 42467328,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 45957120,
+      "action": {
+        "TakeSnapshot": {
+          "name": "os_frame_45957120"
+        }
+      }
+    }
+  ]
+}
