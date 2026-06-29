@@ -87,7 +87,7 @@ Thanks to Jens Müller for his JKCEMU source code, which was a reference for the
 
 The [KC 87](https://github.com/coignard/kc87) source code is © 2026 René Coignard and licensed under the [GNU General Public License v3.0 or later](LICENSE).
 
-The [KC 87 SDK](https://github.com/coignard/kc87-sdk) source code is © 2026 René Coignard and licensed under the [zlib License](https://github.com/coignard/kc87-sdk/blob/main/LICENSE).
+The [KC 87 SDK](https://github.com/coignard/kc87-sdk) source code is © 2026 René Coignard and licensed under the [GNU Lesser General Public License v3.0 or later](https://github.com/coignard/kc87-sdk/blob/main/LICENSE).
 
 The [flat assembler g](https://github.com/coignard/fasmg) source code is © 2015-2025 Tomasz Grysztar and licensed under the [BSD 3-Clause License](https://github.com/coignard/fasmg/blob/master/core/license.txt).
 
