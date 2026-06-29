@@ -506,8 +506,7 @@ struct Args {
     #[arg(long, help_heading = "Tape options")]
     tape_input_list: bool,
 
-    /// Floppy disk image for drive A
-    /// Possible values: raw, AnaDisk, CopyQM, CPC DSK, ImageDisk, TeleDisk
+    /// Floppy disk image
     #[arg(
         long,
         value_name = "image",
@@ -523,6 +522,7 @@ struct Args {
         value_enum,
         value_name = "format",
         default_value_t = FloppyFormatArg::Z9001800K,
+        hide_possible_values = true,
         hide_default_value = true,
         help_heading = "Floppy options",
         verbatim_doc_comment
@@ -562,6 +562,10 @@ struct Args {
         help_heading = "Debug options"
     )]
     play: Option<String>,
+
+    /// Reduce CPU usage
+    #[arg(long, hide = true)]
+    power_save: bool,
 }
 
 fn main() -> Result<()> {
@@ -895,6 +899,7 @@ fn main() -> Result<()> {
         audio,
         AppConfig {
             debug_mode: args.debug,
+            power_save: args.power_save,
             recorder,
             player,
             midi_out: midi_conn,
