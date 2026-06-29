@@ -18,6 +18,7 @@
 use assert_json_diff::assert_json_eq;
 use kc87::core::debug::ReplayPlayer;
 use kc87::core::machine::{Hardware, Machine, MachineType, ModulePreload};
+use kc87::core::peripherals::disk::{self, DiskFormat};
 use kc87::core::video::VideoRenderer;
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -61,6 +62,7 @@ fn replay_matches_snapshot(replay_path_str: &str) {
         graphics: player.replay.metadata.graphics,
         c80: player.replay.metadata.c80,
         rtc: player.replay.metadata.rtc,
+        floppy: player.replay.metadata.floppy,
     };
 
     let (basic_rom, os_rom_1, os_rom_2, font_rom, os_rom_hash) = match machine_type {
@@ -109,6 +111,31 @@ fn replay_matches_snapshot(replay_path_str: &str) {
         sample_rate,
     );
     let mut video = VideoRenderer::new(font_rom, hardware.c80);
+
+    if let Some(image) = &player.replay.metadata.floppy_image {
+        let image_path = PathBuf::from("tests/assets").join(image);
+        let data = fs::read(&image_path)
+            .unwrap_or_else(|_| panic!("Failed to read floppy image at {:?}", image_path));
+        if let Some(expected) = &player.replay.metadata.floppy_image_sha256 {
+            let actual = hex::encode(Sha256::digest(&data));
+            assert_eq!(
+                expected, &actual,
+                "floppy image hash mismatch for '{}'",
+                image
+            );
+        }
+        let extension = Path::new(image).extension().and_then(|ext| ext.to_str());
+        let format = player
+            .replay
+            .metadata
+            .floppy_format
+            .as_deref()
+            .and_then(DiskFormat::by_name)
+            .unwrap_or(DiskFormat::CPA_800K);
+        let disk = disk::load_image(data, extension, format, false)
+            .unwrap_or_else(|err| panic!("Failed to load floppy image '{}': {}", image, err));
+        machine.insert_disk(0, disk);
+    }
 
     let modules: Vec<ModulePreload> = player
         .replay
