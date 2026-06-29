@@ -16,6 +16,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub mod rtc7242x;
+pub mod u8272;
 pub mod u855;
 pub mod u857;
 
