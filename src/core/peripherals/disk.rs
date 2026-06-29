@@ -590,6 +590,7 @@ const TELEDISK_SUPPORTED_VERSION: u8 = 0x15;
 const TELEDISK_HEADER_LEN: usize = 12;
 const TELEDISK_VERSION_OFFSET: usize = 4;
 const TELEDISK_STEPPING_OFFSET: usize = 7;
+const TELEDISK_HEAD_NUMBER_MASK: u8 = 0x01;
 const TELEDISK_REMARK_FLAG: u8 = 0x80;
 const TELEDISK_SECTOR_CRC_ERROR: u8 = 0x02;
 const TELEDISK_SECTOR_DELETED: u8 = 0x04;
@@ -609,6 +610,10 @@ const CPC_TRACK_SIZE_CODE_OFFSET: usize = 0x14;
 const CPC_TRACK_SECTOR_COUNT_OFFSET: usize = 0x15;
 const CPC_TRACK_SECTOR_LIST_OFFSET: usize = 0x18;
 const CPC_SECTOR_INFO_LEN: usize = 8;
+const CPC_SECTOR_HEAD_OFFSET: usize = 1;
+const CPC_SECTOR_ID_OFFSET: usize = 2;
+const CPC_SECTOR_SIZE_CODE_OFFSET: usize = 3;
+const CPC_SECTOR_ACTUAL_LEN_OFFSET: usize = 6;
 const CPC_BIG_SECTOR_SIZE: usize = 0x1800;
 
 const COPYQM_HEADER_LEN: usize = 133;
@@ -619,6 +624,9 @@ const COPYQM_USED_CYLS_OFFSET: usize = 0x5A;
 const COPYQM_CYLS_OFFSET: usize = 0x5B;
 const COPYQM_COMMENT_LEN_OFFSET: usize = 0x6F;
 const COPYQM_SECTOR_OFFSET_OFFSET: usize = 0x71;
+const COPYQM_RUN_FLAG: usize = 0x8000;
+const COPYQM_RUN_MODULO: usize = 0x1_0000;
+const COPYQM_WORD_MASK: usize = 0xFFFF;
 
 #[derive(Debug)]
 pub enum ContainerError {
@@ -940,11 +948,12 @@ fn parse_cpcdisk(bytes: &[u8], read_only: bool) -> Result<FloppyDisk, ContainerE
                 break;
             }
             let id_cyl = track_header[info_pos];
-            let id_head = track_header[info_pos + 1];
-            let id_record = track_header[info_pos + 2];
-            let id_size_code = track_header[info_pos + 3];
+            let id_head = track_header[info_pos + CPC_SECTOR_HEAD_OFFSET];
+            let id_record = track_header[info_pos + CPC_SECTOR_ID_OFFSET];
+            let id_size_code = track_header[info_pos + CPC_SECTOR_SIZE_CODE_OFFSET];
             let stored_len = if extended {
-                (track_header[info_pos + 6] as usize) | ((track_header[info_pos + 7] as usize) << 8)
+                (track_header[info_pos + CPC_SECTOR_ACTUAL_LEN_OFFSET] as usize)
+                    | ((track_header[info_pos + CPC_SECTOR_ACTUAL_LEN_OFFSET + 1] as usize) << 8)
             } else if !extended && track_size_code == SIZE_CODE_MAX {
                 CPC_BIG_SECTOR_SIZE
             } else {
@@ -998,8 +1007,8 @@ fn parse_copyqm(bytes: &[u8], read_only: bool) -> Result<FloppyDisk, ContainerEr
     let mut dst = 0usize;
     while dst < disk_size {
         let Ok(len) = reader.word_le() else { break };
-        if len & 0x8000 != 0 {
-            let run = (0x10000 - len) & 0xFFFF;
+        if len & COPYQM_RUN_FLAG != 0 {
+            let run = (COPYQM_RUN_MODULO - len) & COPYQM_WORD_MASK;
             let Ok(value) = reader.byte() else { break };
             let mut n = run;
             while dst < disk_size && n > 0 {
@@ -1089,7 +1098,7 @@ fn parse_teledisk(bytes: &[u8], read_only: bool) -> Result<FloppyDisk, Container
         if reader.next().is_none() {
             break; // track header crc
         }
-        let phys_head = (head & 0x01) as usize;
+        let phys_head = (head & TELEDISK_HEAD_NUMBER_MASK) as usize;
         for _ in 0..sector_count {
             let sec_track = reader.byte()?;
             let sec_head = reader.byte()?;
@@ -1109,7 +1118,7 @@ fn parse_teledisk(bytes: &[u8], read_only: bool) -> Result<FloppyDisk, Container
             }
             let bogus_header = sec_ctrl & TELEDISK_SECTOR_BOGUS_HEADER != 0;
             let id_cyl = if bogus_header { track } else { sec_track };
-            let id_head = if bogus_header { head & 0x01 } else { sec_head };
+            let id_head = if bogus_header { head & TELEDISK_HEAD_NUMBER_MASK } else { sec_head };
             let mut sector = StoredSector::new(id_cyl, id_head, sec_num, sec_size_code, data);
             sector.deleted = sec_ctrl & TELEDISK_SECTOR_DELETED != 0;
             sector.error = sec_ctrl & TELEDISK_SECTOR_CRC_ERROR != 0;
