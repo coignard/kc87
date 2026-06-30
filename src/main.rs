@@ -18,7 +18,7 @@
 mod app;
 
 use std::fs;
-use std::path::Path;
+use std::path::PathBuf;
 
 use anyhow::{Context, Result, ensure};
 use clap::{CommandFactory, FromArgMatches, Parser, ValueEnum};
@@ -35,7 +35,7 @@ use kc87::core::debug::{ReplayMetadata, ReplayModule, ReplayPlayer, ReplayRecord
 use kc87::core::machine::{
     GraphicsModule, Hardware, LoadFormat, MachineType, ModulePreload, RamSize,
 };
-use kc87::core::peripherals::disk::{self, DiskFormat};
+use kc87::core::peripherals::disk::{self, DiskFormat, DiskMount};
 use kc87::core::video::VideoRenderer;
 
 const KC87_OS_ROM: &[u8] = include_bytes!("../firmware/kc87/os.rom");
@@ -506,14 +506,14 @@ struct Args {
     #[arg(long, help_heading = "Tape options")]
     tape_input_list: bool,
 
-    /// Floppy disk image
+    /// Floppy disk image or folder
     #[arg(
-        long,
-        value_name = "image",
+        long = "floppy",
+        value_name = "path",
         help_heading = "Floppy options",
         verbatim_doc_comment
     )]
-    floppy: Option<String>,
+    floppy: Vec<String>,
 
     /// Disk geometry for raw images
     /// Default: z9001-800k
@@ -613,7 +613,7 @@ fn main() -> Result<()> {
             graphics: args.graphics.map(GraphicsModule::from).unwrap_or_default(),
             c80: args.col80,
             rtc: args.rtc,
-            floppy: args.floppy.is_some(),
+            floppy: !args.floppy.is_empty(),
         },
     };
 
@@ -816,16 +816,35 @@ fn main() -> Result<()> {
 
     let midi_enabled = midi_conn.is_some() || args.midi.is_some();
 
+    ensure!(
+        args.floppy.len() <= 4,
+        "at most four floppy images can be mounted"
+    );
+
+    let raw_format = DiskFormat::from(args.floppy_format);
     let mut floppy_image_name = None;
     let mut floppy_image_sha256 = None;
     let mut floppy_format_name = None;
-    let floppy_disk = match &args.floppy {
-        Some(path) => {
-            let data =
-                fs::read(path).with_context(|| format!("could not read disk image '{path}'"))?;
-            let extension = Path::new(path).extension().and_then(|ext| ext.to_str());
-            let raw_format = DiskFormat::from(args.floppy_format);
-            floppy_image_name = Path::new(path)
+    let mut floppy_mounts = Vec::new();
+    for (drive, value) in args.floppy.iter().enumerate() {
+        let (path_str, writable) = if let Some(rest) = value.strip_suffix(":rw") {
+            (rest, true)
+        } else if let Some(rest) = value.strip_suffix(":ro") {
+            (rest, false)
+        } else {
+            (value.as_str(), false)
+        };
+        let path = PathBuf::from(path_str);
+        let spec = DiskMount {
+            path: path.clone(),
+            format: raw_format,
+            writable,
+        };
+        disk::mount(&spec).with_context(|| format!("could not mount '{path_str}'"))?;
+        if drive == 0 && path.is_file() {
+            let data = fs::read(&path)
+                .with_context(|| format!("could not read disk image '{path_str}'"))?;
+            floppy_image_name = path
                 .file_name()
                 .and_then(|name| name.to_str())
                 .map(str::to_string);
@@ -834,12 +853,9 @@ fn main() -> Result<()> {
                 .floppy_format
                 .to_possible_value()
                 .map(|value| value.get_name().to_string());
-            let disk = disk::load_image(data, extension, raw_format, false)
-                .with_context(|| format!("could not load disk image '{path}'"))?;
-            Some(disk)
         }
-        None => None,
-    };
+        floppy_mounts.push(spec);
+    }
 
     let machine_config = MachineConfig {
         machine_type,
@@ -855,7 +871,7 @@ fn main() -> Result<()> {
         autorun,
         program_name,
         midi_enabled,
-        floppy_disk,
+        floppy_mounts,
     };
 
     let recorder = args.record.then(|| {
