@@ -1,6 +1,6 @@
 [package]
 name = "kc87"
-version = "0.6.0"
+version = "0.6.1"
 authors = [
     "René Coignard <contact@renecoignard.com>"
 ]
@@ -22,6 +22,7 @@ chrono = "0.4.45"
 clap = { version = "4.6.1", features = ["derive"] }
 cpal = "0.18.1"
 crossbeam-channel = "0.5.15"
+filetime = "0.2.29"
 flate2 = "1.1.9"
 hex = "0.4.3"
 image = { version = "0.25.10", default-features = false, features = ["png"] }

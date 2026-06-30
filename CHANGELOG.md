@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.1
+
+### Added
+
+- `--floppy` may be repeated to mount up to four disks on drives A-D, each with an optional `:rw`/`:ro` suffix, mounts are read-only by default.
+- Writable mounts persist guest writes to the host file in place.
+- A folder may be mounted instead of an image and is served as a live CP/M disk.
+- `mldos-1738k` format (1760/1738K ML-DOS) with DateStamper.
+
 ## 0.6.0
 
 ### Added
