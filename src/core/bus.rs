@@ -29,7 +29,7 @@ use crate::core::machine::{
     FRAME_RATE_HZ, GraphicsModule, Hardware, MASTER_CLOCK_HZ, MachineType, RamSize,
 };
 use crate::core::peripherals::UserPeripheral;
-use crate::core::peripherals::disk::FloppyDisk;
+use crate::core::peripherals::disk::DiskBackend;
 use crate::core::peripherals::keyboard::Keyboard;
 use crate::core::peripherals::tape::TapeTract;
 
@@ -565,7 +565,7 @@ impl Bus {
         self.tape_tract = TapeTract::new();
     }
 
-    pub fn insert_disk(&mut self, drive_num: usize, disk: FloppyDisk) {
+    pub fn insert_disk(&mut self, drive_num: usize, disk: Box<dyn DiskBackend>) {
         if let Some(fdc) = &mut self.fdc {
             fdc.insert_disk(drive_num, disk);
         }

@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::core::peripherals::disk::{FloppyDisk, FloppyDiskDrive, Sector, SectorReader};
+use crate::core::peripherals::disk::{DiskBackend, FloppyDiskDrive, Sector, SectorReader};
 
 pub const NUM_DRIVES: usize = 4;
 
@@ -292,7 +292,7 @@ impl U8272 {
         fdc
     }
 
-    pub fn insert_disk(&mut self, drive_num: usize, disk: FloppyDisk) {
+    pub fn insert_disk(&mut self, drive_num: usize, disk: Box<dyn DiskBackend>) {
         if let Some(drive) = self.drives.get_mut(drive_num) {
             drive.insert_disk(disk);
         }
@@ -844,7 +844,7 @@ impl U8272 {
         let Some(idx) = self.executing_drive else {
             return;
         };
-        let Some(disk_is_hd) = self.drives[idx].disk().map(FloppyDisk::is_hd) else {
+        let Some(disk_is_hd) = self.drives[idx].disk().map(|disk| disk.is_hd()) else {
             return;
         };
         let head = self.arg_head();

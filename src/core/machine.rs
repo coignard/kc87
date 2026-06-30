@@ -24,7 +24,7 @@ use crossbeam_channel::Receiver;
 use super::beeper::Beeper;
 use super::bus::{Bus, memory_map};
 use super::peripherals::UserPeripheral;
-use super::peripherals::disk::FloppyDisk;
+use super::peripherals::disk::DiskBackend;
 use super::peripherals::keyboard::Key;
 
 pub const MASTER_CLOCK_HZ: u32 = 2_457_600;
@@ -282,7 +282,7 @@ impl Machine {
         self.bus.attach_tape(rx, sample_rate);
     }
 
-    pub fn insert_disk(&mut self, drive_num: usize, disk: FloppyDisk) {
+    pub fn insert_disk(&mut self, drive_num: usize, disk: Box<dyn DiskBackend>) {
         self.bus.insert_disk(drive_num, disk);
     }
 

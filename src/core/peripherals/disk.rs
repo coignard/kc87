@@ -17,7 +17,10 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::io::Read;
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use flate2::read::GzDecoder;
 
@@ -26,6 +29,101 @@ const SIZE_CODE_BASE: usize = 0x80;
 const SIZE_CODE_MAX: u8 = 6;
 const HD_SECTOR_SIZE: usize = 512;
 const HD_SECTORS_PER_TRACK: usize = 15;
+
+const GZIP_MAGIC: [u8; 2] = [0x1F, 0x8B];
+const COPYQM_MAGIC: [u8; 3] = [b'C', b'Q', 0x14];
+const IMAGEDISK_MAGIC: &[u8] = b"IMD ";
+const TELEDISK_MAGIC_PLAIN: [u8; 2] = [b'T', b'D'];
+const TELEDISK_MAGIC_PACKED: [u8; 2] = [b't', b'd'];
+const CPC_HEADER_STD: &[u8] = b"MV - CPCEMU";
+const CPC_HEADER_EXT: &[u8] = b"EXTENDED CPC DSK";
+const CPC_TRACK_HEADER: &[u8] = b"Track-Info\r\n";
+const TWO_SIDES: usize = 2;
+const MAX_IMAGE_SIZE: usize = 4 * 1024 * 1024;
+const IMD_END_OF_COMMENT: u8 = 0x1A;
+const IMD_HEAD_CYL_MAP: u8 = 0x80;
+const IMD_HEAD_HEAD_MAP: u8 = 0x40;
+const IMD_HEAD_NUMBER_MASK: u8 = 0x01;
+const TELEDISK_SUPPORTED_VERSION: u8 = 0x15;
+const TELEDISK_HEADER_LEN: usize = 12;
+const TELEDISK_VERSION_OFFSET: usize = 4;
+const TELEDISK_STEPPING_OFFSET: usize = 7;
+const TELEDISK_HEAD_NUMBER_MASK: u8 = 0x01;
+const TELEDISK_REMARK_FLAG: u8 = 0x80;
+const TELEDISK_SECTOR_CRC_ERROR: u8 = 0x02;
+const TELEDISK_SECTOR_DELETED: u8 = 0x04;
+const TELEDISK_SECTOR_BOGUS_HEADER: u8 = 0x40;
+const TELEDISK_SECTOR_NO_DATA_MASK: u8 = 0x30;
+const TELEDISK_SECTOR_PHANTOM: u8 = 0xFF;
+const CPC_FILE_HEADER_LEN: usize = 0x100;
+const CPC_TRACK_HEADER_LEN: usize = 0x100;
+const CPC_CYL_COUNT_OFFSET: usize = 0x30;
+const CPC_SIDE_COUNT_OFFSET: usize = 0x31;
+const CPC_STD_TRACK_SIZE_OFFSET: usize = 0x32;
+const CPC_EXT_TRACK_SIZE_TABLE: usize = 0x34;
+const CPC_TRACK_CYL_OFFSET: usize = 0x10;
+const CPC_TRACK_SIDE_OFFSET: usize = 0x11;
+const CPC_TRACK_SIZE_CODE_OFFSET: usize = 0x14;
+const CPC_TRACK_SECTOR_COUNT_OFFSET: usize = 0x15;
+const CPC_TRACK_SECTOR_LIST_OFFSET: usize = 0x18;
+const CPC_SECTOR_INFO_LEN: usize = 8;
+const CPC_SECTOR_HEAD_OFFSET: usize = 1;
+const CPC_SECTOR_ID_OFFSET: usize = 2;
+const CPC_SECTOR_SIZE_CODE_OFFSET: usize = 3;
+const CPC_SECTOR_ACTUAL_LEN_OFFSET: usize = 6;
+const CPC_BIG_SECTOR_SIZE: usize = 0x1800;
+const COPYQM_HEADER_LEN: usize = 133;
+const COPYQM_SECTOR_SIZE_OFFSET: usize = 3;
+const COPYQM_SECTORS_PER_TRACK_OFFSET: usize = 0x10;
+const COPYQM_SIDES_OFFSET: usize = 0x12;
+const COPYQM_USED_CYLS_OFFSET: usize = 0x5A;
+const COPYQM_CYLS_OFFSET: usize = 0x5B;
+const COPYQM_COMMENT_LEN_OFFSET: usize = 0x6F;
+const COPYQM_SECTOR_OFFSET_OFFSET: usize = 0x71;
+const COPYQM_RUN_FLAG: usize = 0x8000;
+const COPYQM_RUN_MODULO: usize = 0x1_0000;
+const COPYQM_WORD_MASK: usize = 0xFFFF;
+
+const CPM_RECORD_SIZE: usize = 128;
+const CPM_RECORDS_PER_EXTENT: usize = 128;
+const CPM_EXTENT_SIZE: usize = CPM_RECORDS_PER_EXTENT * CPM_RECORD_SIZE;
+const CPM_DIR_ENTRY_LEN: usize = 32;
+const CPM_FILL_BYTE: u8 = 0xE5;
+const CPM_NAME_MASK: u8 = 0x7F;
+const CPM_MAX_USER: u8 = 15;
+const CPM_NAME_OFFSET: usize = 1;
+const CPM_NAME_LEN: usize = 8;
+const CPM_EXT_OFFSET: usize = 9;
+const CPM_EXT_LEN: usize = 3;
+const CPM_EXTENT_LOW_OFFSET: usize = 12;
+const CPM_EXTENT_LOW_MASK: usize = 0x1F;
+const CPM_EXTENT_HIGH_OFFSET: usize = 14;
+const CPM_EXTENT_HIGH_SHIFT: u32 = 5;
+const CPM_EXTENT_HIGH_MASK: usize = 0x07E0;
+const CPM_EXTENT_HIGH_STORE_MASK: usize = 0x3F;
+const CPM_RECORD_COUNT_OFFSET: usize = 15;
+const CPM_BLOCK_LIST_OFFSET: usize = 16;
+const CPM_BLOCK_LIST_LEN: usize = 16;
+const CPM_ATTR_BIT: u8 = 0x80;
+const CPM_MANIFEST_NAME: &str = "manifest.json";
+const CPM_USER_DIR_PREFIX: &str = "user";
+
+const CPM_DS_FILENAME: &str = "!!!TIME&.DAT";
+const CPM_DS_RECORD_LEN: usize = 16;
+const CPM_DS_SIGNATURE: [u8; 8] = [b'!', b'!', b'!', b'T', b'I', b'M', b'E', 0x92];
+const CPM_DS_CHECKSUM_SPAN: usize = 0x7F;
+const CPM_DS_SIGNATURE_OFFSET: usize = 0x0F;
+const CPM_DS_STAMP_LEN: usize = 5;
+const CPM_DS_STAMP_COUNT: usize = 3;
+const CPM_DS_YEAR_MIN: i64 = 1978;
+const CPM_DS_YEAR_MAX: i64 = 2078;
+
+const SECONDS_PER_DAY: i64 = 86_400;
+const SECONDS_PER_HOUR: i64 = 3600;
+const SECONDS_PER_MINUTE: i64 = 60;
+
+const DIR_REFRESH_SECONDS: u64 = 5;
+const DIR_WRITE_GRACE_MILLIS: u64 = 1000;
 
 #[derive(Clone, Copy)]
 pub struct DiskFormat {
@@ -172,6 +270,7 @@ struct StoredSector {
     pub data: Vec<u8>,
     pub deleted: bool,
     pub error: bool,
+    pub file_offset: Option<u64>,
 }
 
 impl StoredSector {
@@ -184,7 +283,13 @@ impl StoredSector {
             data,
             deleted: false,
             error: false,
+            file_offset: None,
         }
+    }
+
+    fn with_offset(mut self, offset: u64) -> Self {
+        self.file_offset = Some(offset);
+        self
     }
 }
 
@@ -270,7 +375,48 @@ impl SectorReader {
     }
 }
 
-#[derive(Clone)]
+pub trait DiskBackend: Send {
+    fn cylinders(&self) -> usize;
+    fn sides(&self) -> usize;
+    fn sectors_of_track(&self, phys_cyl: usize, phys_head: usize) -> usize;
+    fn is_hd(&self) -> bool;
+    fn is_read_only(&self) -> bool;
+
+    fn sector_by_index(
+        &mut self,
+        phys_cyl: usize,
+        phys_head: usize,
+        sector_idx: usize,
+    ) -> Option<Sector>;
+
+    fn sector_by_id(
+        &mut self,
+        phys_cyl: usize,
+        phys_head: usize,
+        cyl: u8,
+        head: u8,
+        sector_num: u8,
+        size_code: i16,
+    ) -> Option<Sector>;
+
+    fn write_sector(
+        &mut self,
+        phys_cyl: usize,
+        phys_head: usize,
+        sector: &Sector,
+        data: &[u8],
+        data_len: usize,
+    ) -> bool;
+
+    fn format_sector(
+        &mut self,
+        phys_cyl: usize,
+        phys_head: usize,
+        sector_num: u8,
+        content: &[u8],
+    ) -> bool;
+}
+
 pub struct FloppyDisk {
     tracks: Vec<Vec<StoredSector>>,
     cylinders: usize,
@@ -299,23 +445,6 @@ impl FloppyDisk {
         }
     }
 
-    pub fn cylinders(&self) -> usize {
-        self.cylinders
-    }
-
-    pub fn sides(&self) -> usize {
-        self.sides
-    }
-
-    pub fn is_read_only(&self) -> bool {
-        self.read_only
-    }
-
-    pub fn is_hd(&self) -> bool {
-        self.primary_sectors_per_track >= HD_SECTORS_PER_TRACK
-            && self.primary_sector_size <= HD_SECTOR_SIZE
-    }
-
     fn track_index(&self, phys_cyl: usize, phys_head: usize) -> Option<usize> {
         let head = phys_head & HEAD_MASK;
         if phys_cyl >= self.cylinders || head >= self.sides {
@@ -324,13 +453,16 @@ impl FloppyDisk {
         Some(phys_cyl * self.sides + head)
     }
 
-    fn track(&self, phys_cyl: usize, phys_head: usize) -> Option<&Vec<StoredSector>> {
+    fn track(&self, phys_cyl: usize, phys_head: usize) -> Option<&[StoredSector]> {
         self.track_index(phys_cyl, phys_head)
-            .map(|idx| &self.tracks[idx])
+            .map(|idx| self.tracks[idx].as_slice())
     }
 
-    pub fn sectors_of_track(&self, phys_cyl: usize, phys_head: usize) -> usize {
-        self.track(phys_cyl, phys_head).map_or(0, Vec::len)
+    fn sector_file_offset(&self, phys_cyl: usize, phys_head: usize, sector_num: u8) -> Option<u64> {
+        self.track(phys_cyl, phys_head)?
+            .iter()
+            .find(|stored| stored.sector_num == sector_num)
+            .and_then(|stored| stored.file_offset)
     }
 
     fn build_sector(stored: &StoredSector, index_on_cylinder: usize) -> Sector {
@@ -346,8 +478,58 @@ impl FloppyDisk {
         }
     }
 
-    pub fn sector_by_index(
-        &self,
+    fn linear_bytes(&self) -> Vec<u8> {
+        let spt = self.primary_sectors_per_track;
+        let size = self.primary_sector_size;
+        let total = self.cylinders * self.sides * spt * size;
+        let mut out = vec![0u8; total];
+        for (track_idx, track) in self.tracks.iter().enumerate() {
+            let phys_cyl = track_idx / self.sides;
+            let phys_head = track_idx % self.sides;
+            for stored in track {
+                if stored.sector_num == 0 {
+                    continue;
+                }
+                let logical = stored.sector_num as usize - 1;
+                if logical >= spt {
+                    continue;
+                }
+                let block = (phys_cyl * self.sides + phys_head) * spt + logical;
+                let offset = block * size;
+                let len = stored.data.len().min(size);
+                if offset + len <= out.len() {
+                    out[offset..offset + len].copy_from_slice(&stored.data[..len]);
+                }
+            }
+        }
+        out
+    }
+}
+
+impl DiskBackend for FloppyDisk {
+    fn cylinders(&self) -> usize {
+        self.cylinders
+    }
+
+    fn sides(&self) -> usize {
+        self.sides
+    }
+
+    fn is_read_only(&self) -> bool {
+        self.read_only
+    }
+
+    fn is_hd(&self) -> bool {
+        self.primary_sectors_per_track >= HD_SECTORS_PER_TRACK
+            && self.primary_sector_size <= HD_SECTOR_SIZE
+    }
+
+    fn sectors_of_track(&self, phys_cyl: usize, phys_head: usize) -> usize {
+        self.track(phys_cyl, phys_head).map_or(0, <[_]>::len)
+    }
+
+    fn sector_by_index(
+        &mut self,
         phys_cyl: usize,
         phys_head: usize,
         sector_idx: usize,
@@ -358,8 +540,8 @@ impl FloppyDisk {
             .map(|stored| Self::build_sector(stored, sector_idx))
     }
 
-    pub fn sector_by_id(
-        &self,
+    fn sector_by_id(
+        &mut self,
         phys_cyl: usize,
         phys_head: usize,
         cyl: u8,
@@ -381,7 +563,7 @@ impl FloppyDisk {
         })
     }
 
-    pub fn write_sector(
+    fn write_sector(
         &mut self,
         phys_cyl: usize,
         phys_head: usize,
@@ -407,7 +589,7 @@ impl FloppyDisk {
         true
     }
 
-    pub fn format_sector(
+    fn format_sector(
         &mut self,
         phys_cyl: usize,
         phys_head: usize,
@@ -436,8 +618,979 @@ impl FloppyDisk {
     }
 }
 
+struct RawGeometry {
+    sectors_per_track: usize,
+    sector_size: usize,
+    sides: usize,
+}
+
+impl RawGeometry {
+    fn offset(&self, phys_cyl: usize, phys_head: usize, sector_num: u8) -> Option<u64> {
+        if sector_num == 0 {
+            return None;
+        }
+        let logical = sector_num as usize - 1;
+        if logical >= self.sectors_per_track || phys_head >= self.sides {
+            return None;
+        }
+        let block = (phys_cyl * self.sides + phys_head) * self.sectors_per_track + logical;
+        Some((block * self.sector_size) as u64)
+    }
+}
+
+pub struct FileImageDisk {
+    image: FloppyDisk,
+    file: File,
+    raw_geometry: Option<RawGeometry>,
+}
+
+impl FileImageDisk {
+    pub fn open_raw(path: &Path, format: DiskFormat) -> std::io::Result<Self> {
+        let mut file = OpenOptions::new().read(true).write(true).open(path)?;
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes)?;
+        file.seek(SeekFrom::Start(0))?;
+        let image = format.to_disk(bytes, false);
+        Ok(Self {
+            image,
+            file,
+            raw_geometry: Some(RawGeometry {
+                sectors_per_track: format.sectors_per_track,
+                sector_size: format.sector_size,
+                sides: format.sides,
+            }),
+        })
+    }
+
+    pub fn open_container(path: &Path, image: FloppyDisk) -> std::io::Result<Self> {
+        let file = OpenOptions::new().read(true).write(true).open(path)?;
+        Ok(Self {
+            image,
+            file,
+            raw_geometry: None,
+        })
+    }
+
+    fn flush_sector(&mut self, phys_cyl: usize, phys_head: usize, sector_num: u8, data: &[u8]) {
+        let offset = self
+            .image
+            .sector_file_offset(phys_cyl, phys_head, sector_num)
+            .or_else(|| {
+                self.raw_geometry
+                    .as_ref()
+                    .and_then(|geometry| geometry.offset(phys_cyl, phys_head, sector_num))
+            });
+        let Some(offset) = offset else {
+            return;
+        };
+        if self.file.seek(SeekFrom::Start(offset)).is_ok() {
+            let _ = self.file.write_all(data);
+            let _ = self.file.flush();
+        }
+    }
+}
+
+impl DiskBackend for FileImageDisk {
+    fn cylinders(&self) -> usize {
+        self.image.cylinders()
+    }
+
+    fn sides(&self) -> usize {
+        self.image.sides()
+    }
+
+    fn sectors_of_track(&self, phys_cyl: usize, phys_head: usize) -> usize {
+        self.image.sectors_of_track(phys_cyl, phys_head)
+    }
+
+    fn is_hd(&self) -> bool {
+        self.image.is_hd()
+    }
+
+    fn is_read_only(&self) -> bool {
+        false
+    }
+
+    fn sector_by_index(
+        &mut self,
+        phys_cyl: usize,
+        phys_head: usize,
+        sector_idx: usize,
+    ) -> Option<Sector> {
+        self.image.sector_by_index(phys_cyl, phys_head, sector_idx)
+    }
+
+    fn sector_by_id(
+        &mut self,
+        phys_cyl: usize,
+        phys_head: usize,
+        cyl: u8,
+        head: u8,
+        sector_num: u8,
+        size_code: i16,
+    ) -> Option<Sector> {
+        self.image
+            .sector_by_id(phys_cyl, phys_head, cyl, head, sector_num, size_code)
+    }
+
+    fn write_sector(
+        &mut self,
+        phys_cyl: usize,
+        phys_head: usize,
+        sector: &Sector,
+        data: &[u8],
+        data_len: usize,
+    ) -> bool {
+        if !self
+            .image
+            .write_sector(phys_cyl, phys_head, sector, data, data_len)
+        {
+            return false;
+        }
+        self.flush_sector(phys_cyl, phys_head, sector.sector_num(), &data[..data_len]);
+        true
+    }
+
+    fn format_sector(
+        &mut self,
+        phys_cyl: usize,
+        phys_head: usize,
+        sector_num: u8,
+        content: &[u8],
+    ) -> bool {
+        if !self
+            .image
+            .format_sector(phys_cyl, phys_head, sector_num, content)
+        {
+            return false;
+        }
+        self.flush_sector(phys_cyl, phys_head, sector_num, content);
+        true
+    }
+}
+
+#[derive(Clone, Copy)]
+struct CpmParams {
+    block_size: usize,
+    dir_blocks: usize,
+    sys_bytes: usize,
+    block_num_16bit: bool,
+    datestamp: bool,
+}
+
+fn cpm_params(format: DiskFormat) -> Option<CpmParams> {
+    let sys_bytes = |sys_tracks: usize| {
+        sys_tracks * format.sides * format.sectors_per_track * format.sector_size
+    };
+    let size = format.image_size();
+    let params = if size == DiskFormat::CPA_800K.image_size() {
+        CpmParams {
+            block_size: 2048,
+            dir_blocks: 3,
+            sys_bytes: sys_bytes(0),
+            block_num_16bit: true,
+            datestamp: false,
+        }
+    } else if size == DiskFormat::MSDOS_1200K.image_size()
+        || size == DiskFormat::MSDOS_1440K.image_size()
+    {
+        CpmParams {
+            block_size: 4096,
+            dir_blocks: 2,
+            sys_bytes: sys_bytes(0),
+            block_num_16bit: true,
+            datestamp: false,
+        }
+    } else if size == DiskFormat::MLDOS_1738K_I3.image_size() {
+        CpmParams {
+            block_size: 4096,
+            dir_blocks: 2,
+            sys_bytes: sys_bytes(1),
+            block_num_16bit: true,
+            datestamp: true,
+        }
+    } else {
+        return None;
+    };
+    Some(params)
+}
+
+fn cpm_block_pointer_count(block_num_16bit: bool) -> usize {
+    if block_num_16bit {
+        CPM_BLOCK_LIST_LEN / 2
+    } else {
+        CPM_BLOCK_LIST_LEN
+    }
+}
+
+fn cpm_blocks_per_extent(block_size: usize, block_num_16bit: bool) -> usize {
+    (CPM_EXTENT_SIZE / block_size).min(cpm_block_pointer_count(block_num_16bit))
+}
+
+fn cpm_records_per_block(block_size: usize) -> usize {
+    block_size / CPM_RECORD_SIZE
+}
+
+fn cpm_clean_name(raw: &[u8]) -> String {
+    let ascii: Vec<u8> = raw.iter().map(|byte| byte & CPM_NAME_MASK).collect();
+    String::from_utf8_lossy(&ascii).trim_end().to_string()
+}
+
+fn cpm_entry_filename(entry: &[u8]) -> String {
+    let name = cpm_clean_name(&entry[CPM_NAME_OFFSET..CPM_NAME_OFFSET + CPM_NAME_LEN]);
+    let ext = cpm_clean_name(&entry[CPM_EXT_OFFSET..CPM_EXT_OFFSET + CPM_EXT_LEN]);
+    if ext.is_empty() {
+        name
+    } else {
+        format!("{name}.{ext}")
+    }
+}
+
+fn cpm_entry_extent(entry: &[u8]) -> usize {
+    (entry[CPM_EXTENT_LOW_OFFSET] as usize & CPM_EXTENT_LOW_MASK)
+        | (((entry[CPM_EXTENT_HIGH_OFFSET] as usize) << CPM_EXTENT_HIGH_SHIFT)
+            & CPM_EXTENT_HIGH_MASK)
+}
+
+fn cpm_entry_blocks(entry: &[u8], block_num_16bit: bool) -> Vec<usize> {
+    let mut blocks = Vec::new();
+    if block_num_16bit {
+        let mut idx = CPM_BLOCK_LIST_OFFSET;
+        while idx + 1 < CPM_BLOCK_LIST_OFFSET + CPM_BLOCK_LIST_LEN {
+            blocks.push(entry[idx] as usize | ((entry[idx + 1] as usize) << 8));
+            idx += 2;
+        }
+    } else {
+        for &byte in &entry[CPM_BLOCK_LIST_OFFSET..CPM_BLOCK_LIST_OFFSET + CPM_BLOCK_LIST_LEN] {
+            blocks.push(byte as usize);
+        }
+    }
+    blocks
+}
+
+struct CpmFile {
+    user: u8,
+    name: String,
+    read_only: bool,
+    extents: Vec<(usize, u8, Vec<usize>)>,
+}
+
+fn cpm_parse_directory(raw: &[u8], params: &CpmParams) -> Vec<CpmFile> {
+    let data_offset = params.sys_bytes;
+    let dir_len = params.dir_blocks * params.block_size;
+    let start = data_offset.min(raw.len());
+    let end = (data_offset + dir_len).min(raw.len());
+    let directory = &raw[start..end];
+    let mut files: Vec<CpmFile> = Vec::new();
+    let mut pos = 0;
+    while pos + CPM_DIR_ENTRY_LEN <= directory.len() {
+        let entry = &directory[pos..pos + CPM_DIR_ENTRY_LEN];
+        pos += CPM_DIR_ENTRY_LEN;
+        let user = entry[0];
+        if user > CPM_MAX_USER {
+            continue;
+        }
+        let name = cpm_entry_filename(entry);
+        let extent = cpm_entry_extent(entry);
+        let record_count = entry[CPM_RECORD_COUNT_OFFSET];
+        let read_only = (entry[CPM_EXT_OFFSET] & CPM_ATTR_BIT) != 0;
+        let blocks: Vec<usize> = cpm_entry_blocks(entry, params.block_num_16bit)
+            .into_iter()
+            .filter(|&block| block != 0)
+            .collect();
+        if let Some(file) = files
+            .iter_mut()
+            .find(|file| file.user == user && file.name == name)
+        {
+            file.extents.push((extent, record_count, blocks));
+        } else {
+            files.push(CpmFile {
+                user,
+                name,
+                read_only,
+                extents: vec![(extent, record_count, blocks)],
+            });
+        }
+    }
+    files
+}
+
+fn cpm_ordered_blocks(file: &CpmFile) -> Vec<usize> {
+    let mut extents = file.extents.clone();
+    extents.sort_by_key(|extent| extent.0);
+    extents
+        .into_iter()
+        .flat_map(|(_, _, blocks)| blocks)
+        .collect()
+}
+
+fn cpm_assemble(file: &CpmFile, raw: &[u8], params: &CpmParams) -> Vec<u8> {
+    let data_offset = params.sys_bytes;
+    let mut extents = file.extents.clone();
+    extents.sort_by_key(|extent| extent.0);
+    let mut content = Vec::new();
+    for (_extent, record_count, blocks) in &extents {
+        let mut extent_bytes = Vec::new();
+        for &block in blocks {
+            let start = data_offset + block * params.block_size;
+            if start < raw.len() {
+                let end = (start + params.block_size).min(raw.len());
+                extent_bytes.extend_from_slice(&raw[start..end]);
+            }
+        }
+        let take = ((*record_count as usize) * CPM_RECORD_SIZE).min(extent_bytes.len());
+        content.extend_from_slice(&extent_bytes[..take]);
+    }
+    content
+}
+
+fn cpm_split_name(name: &str) -> ([u8; CPM_NAME_LEN], [u8; CPM_EXT_LEN]) {
+    let (stem, ext) = name.split_once('.').unwrap_or((name, ""));
+    let mut name_bytes = [b' '; CPM_NAME_LEN];
+    let mut ext_bytes = [b' '; CPM_EXT_LEN];
+    for (slot, ch) in stem.bytes().take(CPM_NAME_LEN).enumerate() {
+        name_bytes[slot] = ch.to_ascii_uppercase();
+    }
+    for (slot, ch) in ext.bytes().take(CPM_EXT_LEN).enumerate() {
+        ext_bytes[slot] = ch.to_ascii_uppercase();
+    }
+    (name_bytes, ext_bytes)
+}
+
+fn cpm_build_entry(
+    user: u8,
+    name: &str,
+    extent: usize,
+    record_count: u8,
+    blocks: &[usize],
+    params: &CpmParams,
+) -> [u8; CPM_DIR_ENTRY_LEN] {
+    let mut entry = [0u8; CPM_DIR_ENTRY_LEN];
+    entry[0] = user;
+    let (name_bytes, ext_bytes) = cpm_split_name(name);
+    entry[CPM_NAME_OFFSET..CPM_NAME_OFFSET + CPM_NAME_LEN].copy_from_slice(&name_bytes);
+    entry[CPM_EXT_OFFSET..CPM_EXT_OFFSET + CPM_EXT_LEN].copy_from_slice(&ext_bytes);
+    entry[CPM_EXTENT_LOW_OFFSET] = (extent & CPM_EXTENT_LOW_MASK) as u8;
+    entry[CPM_EXTENT_HIGH_OFFSET] =
+        ((extent >> CPM_EXTENT_HIGH_SHIFT) & CPM_EXTENT_HIGH_STORE_MASK) as u8;
+    entry[CPM_RECORD_COUNT_OFFSET] = record_count;
+    if params.block_num_16bit {
+        for (slot, &block) in blocks.iter().enumerate() {
+            entry[CPM_BLOCK_LIST_OFFSET + slot * 2] = (block & 0xFF) as u8;
+            entry[CPM_BLOCK_LIST_OFFSET + slot * 2 + 1] = ((block >> 8) & 0xFF) as u8;
+        }
+    } else {
+        for (slot, &block) in blocks.iter().enumerate() {
+            entry[CPM_BLOCK_LIST_OFFSET + slot] = (block & 0xFF) as u8;
+        }
+    }
+    entry
+}
+
+fn cpm_file_entries(
+    user: u8,
+    name: &str,
+    records: usize,
+    blocks: &[usize],
+    params: &CpmParams,
+) -> Vec<u8> {
+    let mut out = Vec::new();
+    let pointers_per_extent = cpm_block_pointer_count(params.block_num_16bit);
+    let blocks_each = cpm_blocks_per_extent(params.block_size, params.block_num_16bit);
+    let mut extent = 0usize;
+    let mut consumed = 0usize;
+    let mut remaining = records as isize;
+    loop {
+        let extent_records = remaining.clamp(0, CPM_RECORDS_PER_EXTENT as isize) as u8;
+        let begin = consumed.min(blocks.len());
+        let end = (consumed + blocks_each).min(blocks.len());
+        let extent_blocks = &blocks[begin..end];
+        let extent_blocks = &extent_blocks[..extent_blocks.len().min(pointers_per_extent)];
+        out.extend_from_slice(&cpm_build_entry(
+            user,
+            name,
+            extent,
+            extent_records,
+            extent_blocks,
+            params,
+        ));
+        consumed += extent_blocks.len();
+        remaining -= extent_records as isize;
+        extent += 1;
+        if remaining <= 0 {
+            break;
+        }
+    }
+    out
+}
+
+fn cpm_resolve(dir: &Path, user: u8, name: &str) -> PathBuf {
+    if user == 0 {
+        let flat = dir.join(name);
+        if flat.exists() {
+            return flat;
+        }
+    }
+    dir.join(format!("{CPM_USER_DIR_PREFIX}{user:02}"))
+        .join(name)
+}
+
+fn cpm_list_folder(dir: &Path) -> std::io::Result<Vec<(u8, String)>> {
+    let mut top: Vec<String> = Vec::new();
+    let mut subdirs: Vec<(u8, PathBuf)> = Vec::new();
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if file_type.is_file() {
+            if name != CPM_MANIFEST_NAME {
+                top.push(name);
+            }
+        } else if file_type.is_dir()
+            && let Some(rest) = name.strip_prefix(CPM_USER_DIR_PREFIX)
+            && let Ok(user) = rest.parse::<u8>()
+            && user <= CPM_MAX_USER
+        {
+            subdirs.push((user, entry.path()));
+        }
+    }
+    top.sort_by_key(|name| name.to_lowercase());
+    subdirs.sort_by_key(|(user, _)| *user);
+
+    let mut files: Vec<(u8, String)> = top.into_iter().map(|name| (0, name)).collect();
+    for (user, path) in subdirs {
+        let mut names: Vec<String> = Vec::new();
+        for entry in std::fs::read_dir(&path)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file() {
+                names.push(entry.file_name().to_string_lossy().into_owned());
+            }
+        }
+        names.sort_by_key(|name| name.to_lowercase());
+        files.extend(names.into_iter().map(|name| (user, name)));
+    }
+    Ok(files)
+}
+
+fn cpm_to_bcd(value: u32) -> u8 {
+    ((((value / 10) % 10) << 4) | (value % 10)) as u8
+}
+
+fn civil_from_unix(secs: i64) -> (i64, u32, u32, u32, u32) {
+    let days = secs.div_euclid(SECONDS_PER_DAY);
+    let rem = secs.rem_euclid(SECONDS_PER_DAY);
+    let hour = (rem / SECONDS_PER_HOUR) as u32;
+    let minute = ((rem % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE) as u32;
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let month = (if mp < 10 { mp + 3 } else { mp - 9 }) as u32;
+    let year = yoe + era * 400 + if month <= 2 { 1 } else { 0 };
+    (year, month, day, hour, minute)
+}
+
+fn cpm_write_stamp(buf: &mut [u8], offset: usize, time: std::io::Result<SystemTime>) {
+    let Ok(time) = time else {
+        return;
+    };
+    let Ok(dur) = time.duration_since(UNIX_EPOCH) else {
+        return;
+    };
+    let (year, month, day, hour, minute) = civil_from_unix(dur.as_secs() as i64);
+    if (CPM_DS_YEAR_MIN..CPM_DS_YEAR_MAX).contains(&year) && offset + CPM_DS_STAMP_LEN <= buf.len()
+    {
+        buf[offset] = cpm_to_bcd((year % 100) as u32);
+        buf[offset + 1] = cpm_to_bcd(month);
+        buf[offset + 2] = cpm_to_bcd(day);
+        buf[offset + 3] = cpm_to_bcd(hour);
+        buf[offset + 4] = cpm_to_bcd(minute);
+    }
+}
+
+fn cpm_build_datestamp(dir_entries: usize, slot_files: &[(usize, PathBuf)]) -> Vec<u8> {
+    let mut buf = vec![0u8; dir_entries * CPM_DS_RECORD_LEN];
+    let mut signature = 0usize;
+    let mut pos = CPM_DS_SIGNATURE_OFFSET;
+    while pos < buf.len() {
+        buf[pos] = CPM_DS_SIGNATURE[signature % CPM_DS_SIGNATURE.len()];
+        signature += 1;
+        pos += CPM_DS_RECORD_LEN;
+    }
+    for (slot, path) in slot_files {
+        let base = slot * CPM_DS_RECORD_LEN;
+        if base + CPM_DS_STAMP_COUNT * CPM_DS_STAMP_LEN <= buf.len()
+            && let Ok(meta) = std::fs::metadata(path)
+        {
+            cpm_write_stamp(&mut buf, base, meta.created());
+            cpm_write_stamp(&mut buf, base + CPM_DS_STAMP_LEN, meta.accessed());
+            cpm_write_stamp(&mut buf, base + 2 * CPM_DS_STAMP_LEN, meta.modified());
+        }
+    }
+    let mut pos = 0;
+    while pos < buf.len() {
+        let mut checksum = 0u32;
+        let mut count = 0;
+        while count < CPM_DS_CHECKSUM_SPAN && pos < buf.len() {
+            checksum = checksum.wrapping_add(buf[pos] as u32);
+            pos += 1;
+            count += 1;
+        }
+        if pos < buf.len() {
+            buf[pos] = checksum as u8;
+            pos += 1;
+        }
+    }
+    buf
+}
+
+fn cpm_from_bcd(value: u8) -> Option<u32> {
+    let high = (value >> 4) as u32;
+    let low = (value & 0x0F) as u32;
+    if high > 9 || low > 9 {
+        return None;
+    }
+    Some(high * 10 + low)
+}
+
+fn days_from_civil(year: i64, month: u32, day: u32) -> i64 {
+    let year = if month <= 2 { year - 1 } else { year };
+    let era = if year >= 0 { year } else { year - 399 } / 400;
+    let yoe = year - era * 400;
+    let mp = (if month > 2 { month - 3 } else { month + 9 }) as i64;
+    let doy = (153 * mp + 2) / 5 + day as i64 - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
+fn cpm_stamp_to_unix(buf: &[u8], offset: usize) -> Option<i64> {
+    if offset + CPM_DS_STAMP_LEN > buf.len() {
+        return None;
+    }
+    let yy = cpm_from_bcd(buf[offset])? as i64;
+    let month = cpm_from_bcd(buf[offset + 1])?;
+    let day = cpm_from_bcd(buf[offset + 2])?;
+    let hour = cpm_from_bcd(buf[offset + 3])?;
+    let minute = cpm_from_bcd(buf[offset + 4])?;
+    if month == 0 || month > 12 || day == 0 || day > 31 {
+        return None;
+    }
+    let year = if yy >= CPM_DS_YEAR_MIN % 100 {
+        1900 + yy
+    } else {
+        2000 + yy
+    };
+    Some(
+        days_from_civil(year, month, day) * SECONDS_PER_DAY
+            + hour as i64 * SECONDS_PER_HOUR
+            + minute as i64 * SECONDS_PER_MINUTE,
+    )
+}
+
+fn cpm_read_file_data(image: &[u8], file: &CpmFile, params: &CpmParams) -> Vec<u8> {
+    let data_offset = params.sys_bytes;
+    let mut out = Vec::new();
+    for block in cpm_ordered_blocks(file) {
+        let start = data_offset + block * params.block_size;
+        if start >= image.len() {
+            break;
+        }
+        let end = (start + params.block_size).min(image.len());
+        out.extend_from_slice(&image[start..end]);
+    }
+    out
+}
+
+fn cpm_apply_datestamp(image: &[u8], dir: &Path, params: &CpmParams) {
+    let files = cpm_parse_directory(image, params);
+    let Some(ds_file) = files
+        .iter()
+        .find(|file| file.name.eq_ignore_ascii_case(CPM_DS_FILENAME))
+    else {
+        return;
+    };
+    let stamps = cpm_read_file_data(image, ds_file, params);
+    let data_offset = params.sys_bytes;
+    let dir_len = params.dir_blocks * params.block_size;
+    let start = data_offset.min(image.len());
+    let end = (data_offset + dir_len).min(image.len());
+    let directory = &image[start..end];
+    let mut pos = 0;
+    let mut slot = 0;
+    while pos + CPM_DIR_ENTRY_LEN <= directory.len() {
+        let entry = &directory[pos..pos + CPM_DIR_ENTRY_LEN];
+        pos += CPM_DIR_ENTRY_LEN;
+        let user = entry[0];
+        if user <= CPM_MAX_USER && cpm_entry_extent(entry) == 0 {
+            let name = cpm_entry_filename(entry);
+            if !name.eq_ignore_ascii_case(CPM_DS_FILENAME)
+                && let Some(secs) =
+                    cpm_stamp_to_unix(&stamps, slot * CPM_DS_RECORD_LEN + 2 * CPM_DS_STAMP_LEN)
+            {
+                let path = cpm_resolve(dir, user, &name);
+                let mtime = filetime::FileTime::from_unix_time(secs, 0);
+                let _ = filetime::set_file_mtime(&path, mtime);
+            }
+        }
+        slot += 1;
+    }
+}
+
+fn cpm_build_image(dir: &Path, format: DiskFormat, params: &CpmParams) -> std::io::Result<Vec<u8>> {
+    let size = format.image_size();
+    let mut image = vec![CPM_FILL_BYTE; size];
+    let total_blocks = size / params.block_size;
+    let data_offset = params.sys_bytes;
+    let records_per_block = cpm_records_per_block(params.block_size);
+    let dir_capacity = params.dir_blocks * params.block_size;
+    let mut directory: Vec<u8> = Vec::new();
+    let mut free_block = params.dir_blocks;
+    let mut slot_files: Vec<(usize, PathBuf)> = Vec::new();
+    let mut ds_blocks: Vec<usize> = Vec::new();
+
+    if params.datestamp {
+        let dir_entries = dir_capacity / CPM_DIR_ENTRY_LEN;
+        let ds_records = (dir_entries * CPM_DS_RECORD_LEN).div_ceil(CPM_RECORD_SIZE);
+        let ds_block_count = ds_records.div_ceil(records_per_block);
+        if free_block + ds_block_count > total_blocks {
+            return Err(std::io::Error::other("directory disk is full"));
+        }
+        ds_blocks = (free_block..free_block + ds_block_count).collect();
+        free_block += ds_block_count;
+        directory.extend_from_slice(&cpm_file_entries(
+            0,
+            CPM_DS_FILENAME,
+            ds_records,
+            &ds_blocks,
+            params,
+        ));
+    }
+
+    for (user, name) in cpm_list_folder(dir)? {
+        if params.datestamp && name.eq_ignore_ascii_case(CPM_DS_FILENAME) {
+            continue;
+        }
+        let path = cpm_resolve(dir, user, &name);
+        let content = std::fs::read(&path)?;
+        let records = content.len().div_ceil(CPM_RECORD_SIZE);
+        let block_count = records.div_ceil(records_per_block);
+        if free_block + block_count > total_blocks {
+            return Err(std::io::Error::other("directory disk is full"));
+        }
+        let blocks: Vec<usize> = (free_block..free_block + block_count).collect();
+        let start = data_offset + free_block * params.block_size;
+        image[start..start + content.len()].copy_from_slice(&content);
+        free_block += block_count;
+        slot_files.push((directory.len() / CPM_DIR_ENTRY_LEN, path));
+        directory.extend_from_slice(&cpm_file_entries(user, &name, records, &blocks, params));
+    }
+
+    if directory.len() > dir_capacity {
+        return Err(std::io::Error::other(
+            "too many files for the directory area",
+        ));
+    }
+    image[data_offset..data_offset + directory.len()].copy_from_slice(&directory);
+
+    if params.datestamp && !ds_blocks.is_empty() {
+        let dir_entries = dir_capacity / CPM_DIR_ENTRY_LEN;
+        let ds = cpm_build_datestamp(dir_entries, &slot_files);
+        let start = data_offset + ds_blocks[0] * params.block_size;
+        let end = (start + ds.len()).min(image.len());
+        image[start..end].copy_from_slice(&ds[..end - start]);
+    }
+    Ok(image)
+}
+
+fn cpm_set_readonly(path: &Path, read_only: bool) {
+    if let Ok(meta) = std::fs::metadata(path) {
+        let mut perms = meta.permissions();
+        if perms.readonly() != read_only {
+            perms.set_readonly(read_only);
+            let _ = std::fs::set_permissions(path, perms);
+        }
+    }
+}
+
+fn cpm_sync_folder(raw: &[u8], dir: &Path, params: &CpmParams) {
+    use std::collections::HashSet;
+
+    let files = cpm_parse_directory(raw, params);
+    let mut wanted: HashSet<PathBuf> = HashSet::new();
+    for file in &files {
+        if params.datestamp && file.name.eq_ignore_ascii_case(CPM_DS_FILENAME) {
+            continue;
+        }
+        let path = cpm_resolve(dir, file.user, &file.name);
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let content = cpm_assemble(file, raw, params);
+        let differs = std::fs::read(&path)
+            .map(|old| old != content)
+            .unwrap_or(true);
+        if differs {
+            cpm_set_readonly(&path, false);
+            let _ = std::fs::write(&path, &content);
+        }
+        cpm_set_readonly(&path, file.read_only);
+        wanted.insert(path);
+    }
+    cpm_prune(dir, &wanted);
+}
+
+fn cpm_prune(dir: &Path, wanted: &std::collections::HashSet<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        let path = entry.path();
+        if file_type.is_file() {
+            if entry.file_name().to_string_lossy() == CPM_MANIFEST_NAME {
+                continue;
+            }
+            if !wanted.contains(&path) {
+                let _ = std::fs::remove_file(&path);
+            }
+        } else if file_type.is_dir() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let is_user_dir = name
+                .strip_prefix(CPM_USER_DIR_PREFIX)
+                .and_then(|rest| rest.parse::<u8>().ok())
+                .is_some();
+            if !is_user_dir {
+                continue;
+            }
+            if let Ok(sub) = std::fs::read_dir(&path) {
+                for child in sub.flatten() {
+                    let child_path = child.path();
+                    let is_file = child.file_type().map(|t| t.is_file()).unwrap_or(false);
+                    if is_file && !wanted.contains(&child_path) {
+                        let _ = std::fs::remove_file(&child_path);
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub struct DirectoryDisk {
+    dir: PathBuf,
+    format: DiskFormat,
+    params: CpmParams,
+    image: FloppyDisk,
+    sys_sectors: usize,
+    dir_sectors: usize,
+    sides: usize,
+    sectors_per_track: usize,
+    sector_size: usize,
+    sectors_per_block: usize,
+    read_only: bool,
+    auto_refresh: bool,
+    last_build: Instant,
+    last_write: Instant,
+}
+
+impl DirectoryDisk {
+    pub fn open(dir: &Path, format: DiskFormat, writable: bool) -> std::io::Result<Self> {
+        let params = cpm_params(format)
+            .ok_or_else(|| std::io::Error::other("no CP/M layout for this disk format"))?;
+        let raw = cpm_build_image(dir, format, &params)?;
+        let image = format.to_disk(raw, !writable);
+        let now = Instant::now();
+        Ok(Self {
+            dir: dir.to_path_buf(),
+            format,
+            sys_sectors: params.sys_bytes / format.sector_size,
+            dir_sectors: params.dir_blocks * params.block_size / format.sector_size,
+            sides: format.sides,
+            sectors_per_track: format.sectors_per_track,
+            sector_size: format.sector_size,
+            sectors_per_block: params.block_size / format.sector_size,
+            params,
+            image,
+            read_only: !writable,
+            auto_refresh: true,
+            last_build: now,
+            last_write: now,
+        })
+    }
+
+    fn abs_sector(&self, phys_cyl: usize, phys_head: usize, sector_num: u8) -> Option<usize> {
+        if sector_num == 0 || phys_head >= self.sides {
+            return None;
+        }
+        let logical = sector_num as usize - 1;
+        if logical >= self.sectors_per_track {
+            return None;
+        }
+        Some((phys_cyl * self.sides + phys_head) * self.sectors_per_track + logical)
+    }
+
+    fn in_directory(&self, abs: usize) -> bool {
+        abs >= self.sys_sectors && abs < self.sys_sectors + self.dir_sectors
+    }
+
+    fn reconcile(&self) {
+        cpm_sync_folder(&self.image.linear_bytes(), &self.dir, &self.params);
+    }
+
+    fn write_through_data(&self, abs: usize, sector_in_block: usize, data: &[u8]) {
+        let raw = self.image.linear_bytes();
+        let files = cpm_parse_directory(&raw, &self.params);
+        let block_num = (abs - self.sys_sectors) / self.sectors_per_block;
+        for file in &files {
+            let Some(block_offset) = cpm_ordered_blocks(file)
+                .iter()
+                .position(|&block| block == block_num)
+            else {
+                continue;
+            };
+            let path = cpm_resolve(&self.dir, file.user, &file.name);
+            if self.params.datestamp && file.name.eq_ignore_ascii_case(CPM_DS_FILENAME) {
+                cpm_apply_datestamp(&raw, &self.dir, &self.params);
+                return;
+            }
+            let offset =
+                (block_offset * self.params.block_size + sector_in_block * self.sector_size) as u64;
+            let within = std::fs::metadata(&path)
+                .map(|meta| offset + data.len() as u64 <= meta.len())
+                .unwrap_or(false);
+            if within
+                && let Ok(mut handle) = OpenOptions::new().write(true).open(&path)
+                && handle.seek(SeekFrom::Start(offset)).is_ok()
+            {
+                let _ = handle.write_all(data);
+                let _ = handle.flush();
+            }
+            return;
+        }
+    }
+
+    fn maybe_refresh(&mut self, phys_cyl: usize, phys_head: usize, first_sector: bool) {
+        if !self.auto_refresh || phys_cyl != 0 || phys_head != 0 || !first_sector {
+            return;
+        }
+        let now = Instant::now();
+        if now.duration_since(self.last_build) >= Duration::from_secs(DIR_REFRESH_SECONDS)
+            && now.duration_since(self.last_write) >= Duration::from_millis(DIR_WRITE_GRACE_MILLIS)
+        {
+            self.rebuild();
+        }
+    }
+
+    fn rebuild(&mut self) {
+        if let Ok(raw) = cpm_build_image(&self.dir, self.format, &self.params) {
+            self.image = self.format.to_disk(raw, self.read_only);
+            self.last_build = Instant::now();
+        }
+    }
+}
+
+impl DiskBackend for DirectoryDisk {
+    fn cylinders(&self) -> usize {
+        self.image.cylinders()
+    }
+
+    fn sides(&self) -> usize {
+        self.image.sides()
+    }
+
+    fn sectors_of_track(&self, phys_cyl: usize, phys_head: usize) -> usize {
+        self.image.sectors_of_track(phys_cyl, phys_head)
+    }
+
+    fn is_hd(&self) -> bool {
+        self.image.is_hd()
+    }
+
+    fn is_read_only(&self) -> bool {
+        self.read_only
+    }
+
+    fn sector_by_index(
+        &mut self,
+        phys_cyl: usize,
+        phys_head: usize,
+        sector_idx: usize,
+    ) -> Option<Sector> {
+        self.maybe_refresh(phys_cyl, phys_head, sector_idx == 0);
+        self.image.sector_by_index(phys_cyl, phys_head, sector_idx)
+    }
+
+    fn sector_by_id(
+        &mut self,
+        phys_cyl: usize,
+        phys_head: usize,
+        cyl: u8,
+        head: u8,
+        sector_num: u8,
+        size_code: i16,
+    ) -> Option<Sector> {
+        self.maybe_refresh(phys_cyl, phys_head, sector_num == 1);
+        self.image
+            .sector_by_id(phys_cyl, phys_head, cyl, head, sector_num, size_code)
+    }
+
+    fn write_sector(
+        &mut self,
+        phys_cyl: usize,
+        phys_head: usize,
+        sector: &Sector,
+        data: &[u8],
+        data_len: usize,
+    ) -> bool {
+        if self.read_only {
+            return false;
+        }
+        if !self
+            .image
+            .write_sector(phys_cyl, phys_head, sector, data, data_len)
+        {
+            return false;
+        }
+        self.last_write = Instant::now();
+        if let Some(abs) = self.abs_sector(phys_cyl, phys_head, sector.sector_num()) {
+            if self.in_directory(abs) {
+                self.reconcile();
+            } else if abs >= self.sys_sectors + self.dir_sectors {
+                let sector_in_block = (abs - self.sys_sectors) % self.sectors_per_block;
+                self.write_through_data(abs, sector_in_block, &data[..data_len]);
+            }
+        }
+        true
+    }
+
+    fn format_sector(
+        &mut self,
+        phys_cyl: usize,
+        phys_head: usize,
+        sector_num: u8,
+        content: &[u8],
+    ) -> bool {
+        if self.read_only {
+            return false;
+        }
+        if !self
+            .image
+            .format_sector(phys_cyl, phys_head, sector_num, content)
+        {
+            return false;
+        }
+        self.last_write = Instant::now();
+        self.reconcile();
+        true
+    }
+}
+
 pub struct FloppyDiskDrive {
-    disk: Option<FloppyDisk>,
+    disk: Option<Box<dyn DiskBackend>>,
     head: u8,
     present_cylinder: u16,
     new_cylinder: u16,
@@ -465,7 +1618,7 @@ impl FloppyDiskDrive {
         self.new_cylinder = 0;
     }
 
-    pub fn insert_disk(&mut self, disk: FloppyDisk) {
+    pub fn insert_disk(&mut self, disk: Box<dyn DiskBackend>) {
         self.disk = Some(disk);
     }
 
@@ -473,8 +1626,8 @@ impl FloppyDiskDrive {
         self.disk = None;
     }
 
-    pub fn disk(&self) -> Option<&FloppyDisk> {
-        self.disk.as_ref()
+    pub fn disk(&self) -> Option<&dyn DiskBackend> {
+        self.disk.as_deref()
     }
 
     pub fn is_ready(&self) -> bool {
@@ -484,7 +1637,7 @@ impl FloppyDiskDrive {
     pub fn is_read_only(&self) -> bool {
         self.disk
             .as_ref()
-            .map(FloppyDisk::is_read_only)
+            .map(|disk| disk.is_read_only())
             .unwrap_or(true)
     }
 
@@ -516,7 +1669,7 @@ impl FloppyDiskDrive {
         size_code: u8,
     ) -> Option<Sector> {
         let phys_cyl = self.present_cylinder as usize;
-        let disk = self.disk.as_ref()?;
+        let disk = self.disk.as_mut()?;
         let mut sector =
             disk.sector_by_id(phys_cyl, phys_head, cyl, head, sector_num, size_code as i16);
         if let Some(found) = &sector
@@ -540,10 +1693,11 @@ impl FloppyDiskDrive {
         sector
     }
 
-    pub fn read_sector_by_index(&self, phys_head: usize, sector_idx: usize) -> Option<Sector> {
+    pub fn read_sector_by_index(&mut self, phys_head: usize, sector_idx: usize) -> Option<Sector> {
+        let phys_cyl = self.present_cylinder as usize;
         self.disk
-            .as_ref()?
-            .sector_by_index(self.present_cylinder as usize, phys_head, sector_idx)
+            .as_mut()?
+            .sector_by_index(phys_cyl, phys_head, sector_idx)
     }
 
     pub fn write_sector(
@@ -568,65 +1722,6 @@ impl FloppyDiskDrive {
         }
     }
 }
-
-const GZIP_MAGIC: [u8; 2] = [0x1F, 0x8B];
-const COPYQM_MAGIC: [u8; 3] = [b'C', b'Q', 0x14];
-const IMAGEDISK_MAGIC: &[u8] = b"IMD ";
-const TELEDISK_MAGIC_PLAIN: [u8; 2] = [b'T', b'D'];
-const TELEDISK_MAGIC_PACKED: [u8; 2] = [b't', b'd'];
-const CPC_HEADER_STD: &[u8] = b"MV - CPCEMU";
-const CPC_HEADER_EXT: &[u8] = b"EXTENDED CPC DSK";
-const CPC_TRACK_HEADER: &[u8] = b"Track-Info\r\n";
-
-const TWO_SIDES: usize = 2;
-const MAX_IMAGE_SIZE: usize = 4 * 1024 * 1024;
-
-const IMD_END_OF_COMMENT: u8 = 0x1A;
-const IMD_HEAD_CYL_MAP: u8 = 0x80;
-const IMD_HEAD_HEAD_MAP: u8 = 0x40;
-const IMD_HEAD_NUMBER_MASK: u8 = 0x01;
-
-const TELEDISK_SUPPORTED_VERSION: u8 = 0x15;
-const TELEDISK_HEADER_LEN: usize = 12;
-const TELEDISK_VERSION_OFFSET: usize = 4;
-const TELEDISK_STEPPING_OFFSET: usize = 7;
-const TELEDISK_HEAD_NUMBER_MASK: u8 = 0x01;
-const TELEDISK_REMARK_FLAG: u8 = 0x80;
-const TELEDISK_SECTOR_CRC_ERROR: u8 = 0x02;
-const TELEDISK_SECTOR_DELETED: u8 = 0x04;
-const TELEDISK_SECTOR_BOGUS_HEADER: u8 = 0x40;
-const TELEDISK_SECTOR_NO_DATA_MASK: u8 = 0x30;
-const TELEDISK_SECTOR_PHANTOM: u8 = 0xFF;
-
-const CPC_FILE_HEADER_LEN: usize = 0x100;
-const CPC_TRACK_HEADER_LEN: usize = 0x100;
-const CPC_CYL_COUNT_OFFSET: usize = 0x30;
-const CPC_SIDE_COUNT_OFFSET: usize = 0x31;
-const CPC_STD_TRACK_SIZE_OFFSET: usize = 0x32;
-const CPC_EXT_TRACK_SIZE_TABLE: usize = 0x34;
-const CPC_TRACK_CYL_OFFSET: usize = 0x10;
-const CPC_TRACK_SIDE_OFFSET: usize = 0x11;
-const CPC_TRACK_SIZE_CODE_OFFSET: usize = 0x14;
-const CPC_TRACK_SECTOR_COUNT_OFFSET: usize = 0x15;
-const CPC_TRACK_SECTOR_LIST_OFFSET: usize = 0x18;
-const CPC_SECTOR_INFO_LEN: usize = 8;
-const CPC_SECTOR_HEAD_OFFSET: usize = 1;
-const CPC_SECTOR_ID_OFFSET: usize = 2;
-const CPC_SECTOR_SIZE_CODE_OFFSET: usize = 3;
-const CPC_SECTOR_ACTUAL_LEN_OFFSET: usize = 6;
-const CPC_BIG_SECTOR_SIZE: usize = 0x1800;
-
-const COPYQM_HEADER_LEN: usize = 133;
-const COPYQM_SECTOR_SIZE_OFFSET: usize = 3;
-const COPYQM_SECTORS_PER_TRACK_OFFSET: usize = 0x10;
-const COPYQM_SIDES_OFFSET: usize = 0x12;
-const COPYQM_USED_CYLS_OFFSET: usize = 0x5A;
-const COPYQM_CYLS_OFFSET: usize = 0x5B;
-const COPYQM_COMMENT_LEN_OFFSET: usize = 0x6F;
-const COPYQM_SECTOR_OFFSET_OFFSET: usize = 0x71;
-const COPYQM_RUN_FLAG: usize = 0x8000;
-const COPYQM_RUN_MODULO: usize = 0x1_0000;
-const COPYQM_WORD_MASK: usize = 0xFFFF;
 
 #[derive(Debug)]
 pub enum ContainerError {
@@ -676,21 +1771,74 @@ fn detect_kind(bytes: &[u8], ext: Option<&str>) -> ImageKind {
     }
 }
 
+#[derive(Clone)]
+pub struct DiskMount {
+    pub path: PathBuf,
+    pub format: DiskFormat,
+    pub writable: bool,
+}
+
+pub fn mount(spec: &DiskMount) -> Result<Box<dyn DiskBackend>, ContainerError> {
+    if spec.path.is_dir() {
+        let disk = DirectoryDisk::open(&spec.path, spec.format, spec.writable).map_err(|err| {
+            ContainerError::Unsupported(format!("{}: {err}", spec.path.display()))
+        })?;
+        return Ok(Box::new(disk));
+    }
+    let raw = std::fs::read(&spec.path)
+        .map_err(|err| ContainerError::Unsupported(format!("{}: {err}", spec.path.display())))?;
+    let ext = spec.path.extension().and_then(|ext| ext.to_str());
+    if spec.writable {
+        if raw.len() >= GZIP_MAGIC.len() && raw[..GZIP_MAGIC.len()] == GZIP_MAGIC {
+            return Err(ContainerError::Unsupported(
+                "gzipped images cannot be mounted writable; decompress it first".into(),
+            ));
+        }
+        let open_err = |err: std::io::Error| {
+            ContainerError::Unsupported(format!("{}: {err}", spec.path.display()))
+        };
+        match detect_kind(&raw, ext) {
+            ImageKind::Raw => {
+                let disk = FileImageDisk::open_raw(&spec.path, spec.format).map_err(open_err)?;
+                Ok(Box::new(disk))
+            }
+            ImageKind::AnaDisk => {
+                let image = parse_anadisk(&raw, false)?;
+                let disk = FileImageDisk::open_container(&spec.path, image).map_err(open_err)?;
+                Ok(Box::new(disk))
+            }
+            ImageKind::CpcDsk => {
+                let image = parse_cpcdisk(&raw, false)?;
+                let disk = FileImageDisk::open_container(&spec.path, image).map_err(open_err)?;
+                Ok(Box::new(disk))
+            }
+            _ => Err(ContainerError::Unsupported(
+                "writable mounts support raw, CPC and AnaDisk images; \
+                 convert other containers with utils/disk2img.py"
+                    .into(),
+            )),
+        }
+    } else {
+        load_image(raw, ext, spec.format, true)
+    }
+}
+
 pub fn load_image(
     bytes: Vec<u8>,
     ext: Option<&str>,
     raw_format: DiskFormat,
     read_only: bool,
-) -> Result<FloppyDisk, ContainerError> {
+) -> Result<Box<dyn DiskBackend>, ContainerError> {
     let bytes = maybe_gunzip(bytes);
-    match detect_kind(&bytes, ext) {
-        ImageKind::Raw => Ok(raw_format.to_disk(bytes, read_only)),
-        ImageKind::AnaDisk => parse_anadisk(&bytes, read_only),
-        ImageKind::CopyQm => parse_copyqm(&bytes, read_only),
-        ImageKind::CpcDsk => parse_cpcdisk(&bytes, read_only),
-        ImageKind::ImageDisk => parse_imagedisk(&bytes, read_only),
-        ImageKind::TeleDisk => parse_teledisk(&bytes, read_only),
-    }
+    let disk: FloppyDisk = match detect_kind(&bytes, ext) {
+        ImageKind::Raw => raw_format.to_disk(bytes, read_only),
+        ImageKind::AnaDisk => parse_anadisk(&bytes, read_only)?,
+        ImageKind::CopyQm => parse_copyqm(&bytes, read_only)?,
+        ImageKind::CpcDsk => parse_cpcdisk(&bytes, read_only)?,
+        ImageKind::ImageDisk => parse_imagedisk(&bytes, read_only)?,
+        ImageKind::TeleDisk => parse_teledisk(&bytes, read_only)?,
+    };
+    Ok(Box::new(disk))
 }
 
 fn maybe_gunzip(bytes: Vec<u8>) -> Vec<u8> {
@@ -714,6 +1862,10 @@ struct ByteReader<'a> {
 impl<'a> ByteReader<'a> {
     fn new(bytes: &'a [u8]) -> Self {
         Self { bytes, pos: 0 }
+    }
+
+    fn position(&self) -> usize {
+        self.pos
     }
 
     fn next(&mut self) -> Option<u8> {
@@ -817,17 +1969,23 @@ fn parse_anadisk(bytes: &[u8], read_only: bool) -> Result<FloppyDisk, ContainerE
         if phys_head > 1 || id_head > 1 || id_record < 1 || id_size_code > 3 {
             break;
         }
-        let mut data = vec![0u8; size_by_size_code(id_size_code)];
+        let nominal = size_by_size_code(id_size_code);
+        let mut data = vec![0u8; nominal];
+        let mut file_offset = None;
         if data_len > 0 {
+            let data_pos = reader.position();
             let raw = reader.take(data_len)?;
             let copy = raw.len().min(data.len());
             data[..copy].copy_from_slice(&raw[..copy]);
+            if data_len == nominal {
+                file_offset = Some(data_pos as u64);
+            }
         }
-        builder.add(
-            phys_cyl as usize,
-            phys_head as usize,
-            StoredSector::new(id_cyl, id_head, id_record, id_size_code, data),
-        );
+        let mut sector = StoredSector::new(id_cyl, id_head, id_record, id_size_code, data);
+        if let Some(offset) = file_offset {
+            sector = sector.with_offset(offset);
+        }
+        builder.add(phys_cyl as usize, phys_head as usize, sector);
     }
     builder.finish(read_only)
 }
@@ -935,6 +2093,7 @@ fn parse_cpcdisk(bytes: &[u8], read_only: bool) -> Result<FloppyDisk, ContainerE
         }
         let sector_count = track_header[CPC_TRACK_SECTOR_COUNT_OFFSET] as usize;
 
+        let track_data_start = reader.position();
         let track_buf = if track_size > CPC_TRACK_HEADER_LEN {
             reader.take(track_size - CPC_TRACK_HEADER_LEN)?
         } else {
@@ -963,15 +2122,21 @@ fn parse_cpcdisk(bytes: &[u8], read_only: bool) -> Result<FloppyDisk, ContainerE
 
             let available = track_buf.len().saturating_sub(data_pos);
             let copy = stored_len.min(available);
-            let mut data = vec![0u8; size_by_size_code(id_size_code).max(copy)];
+            let nominal = size_by_size_code(id_size_code);
+            let mut data = vec![0u8; nominal.max(copy)];
             data[..copy].copy_from_slice(&track_buf[data_pos..data_pos + copy]);
+            let file_offset = if stored_len == nominal && available >= stored_len {
+                Some((track_data_start + data_pos) as u64)
+            } else {
+                None
+            };
             data_pos += stored_len;
 
-            builder.add(
-                cyl,
-                side,
-                StoredSector::new(id_cyl, id_head, id_record, id_size_code, data),
-            );
+            let mut sector = StoredSector::new(id_cyl, id_head, id_record, id_size_code, data);
+            if let Some(offset) = file_offset {
+                sector = sector.with_offset(offset);
+            }
+            builder.add(cyl, side, sector);
         }
     }
     builder.finish(read_only)
@@ -1078,9 +2243,9 @@ fn parse_teledisk(bytes: &[u8], read_only: bool) -> Result<FloppyDisk, Container
     let mut reader = ByteReader::new(&body);
 
     if has_remark {
-        reader.word_le()?; // comment crc
+        reader.word_le()?;
         let comment_len = reader.word_le()?;
-        reader.take(6)?; // year month day hour minute second
+        reader.take(6)?;
         reader.take(comment_len)?;
     }
 
@@ -1096,7 +2261,7 @@ fn parse_teledisk(bytes: &[u8], read_only: bool) -> Result<FloppyDisk, Container
             break;
         };
         if reader.next().is_none() {
-            break; // track header crc
+            break;
         }
         let phys_head = (head & TELEDISK_HEAD_NUMBER_MASK) as usize;
         for _ in 0..sector_count {
@@ -1105,7 +2270,7 @@ fn parse_teledisk(bytes: &[u8], read_only: bool) -> Result<FloppyDisk, Container
             let sec_num = reader.byte()?;
             let sec_size_code = reader.byte()?;
             let sec_ctrl = reader.byte()?;
-            reader.byte()?; // sector crc
+            reader.byte()?;
             if sec_size_code > SIZE_CODE_MAX {
                 return Err(ContainerError::Unsupported(format!(
                     "TeleDisk sector size code {sec_size_code}"

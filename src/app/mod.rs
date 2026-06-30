@@ -46,7 +46,7 @@ use kc87::core::machine::{
     ModulePreload,
 };
 use kc87::core::peripherals::UserPeripheral;
-use kc87::core::peripherals::disk::FloppyDisk;
+use kc87::core::peripherals::disk::{self, DiskMount};
 use kc87::core::peripherals::keyboard::Key;
 use kc87::core::peripherals::midi::MidiInterface;
 use kc87::core::video::VideoRenderer;
@@ -342,7 +342,7 @@ pub struct MachineConfig {
     pub autorun: bool,
     pub program_name: String,
     pub midi_enabled: bool,
-    pub floppy_disk: Option<FloppyDisk>,
+    pub floppy_mounts: Vec<DiskMount>,
 }
 
 impl MachineConfig {
@@ -361,8 +361,11 @@ impl MachineConfig {
             machine.plug_user_peripheral(UserPeripheral::Midi(MidiInterface::new()));
         }
 
-        if let Some(disk) = &self.floppy_disk {
-            machine.insert_disk(0, disk.clone());
+        for (drive, mount) in self.floppy_mounts.iter().enumerate() {
+            match disk::mount(mount) {
+                Ok(disk) => machine.insert_disk(drive, disk),
+                Err(err) => eprintln!("floppy: {err}"),
+            }
         }
 
         if let Some(payload) = &self.payload {
