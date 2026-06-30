@@ -97,6 +97,19 @@ jobs:
     - name: Check formatting
       run: cargo fmt --all -- --check
 
+  audit:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Security audit
+        uses: rustsec/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   deny:
     name: Deny
     runs-on: ubuntu-latest
