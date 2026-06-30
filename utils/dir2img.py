@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 RECORD_SIZE = 128
@@ -35,10 +36,24 @@ ATTR_FLAGS = (("R", ATTR_READ_ONLY), ("S", ATTR_SYSTEM), ("A", ATTR_ARCHIVE))
 MANIFEST_NAME = "manifest.json"
 USER_DIR_PREFIX = "user"
 
+DS_FILENAME = "!!!TIME&.DAT"
+DS_RECORD_LEN = 16
+DS_SIGNATURE = b"!!!TIME\x92"
+DS_CHECKSUM_SPAN = 0x7F
+DS_SIGNATURE_OFFSET = 0x0F
+DS_STAMP_LEN = 5
+DS_STAMP_COUNT = 3
+DS_YEAR_MIN = 1978
+DS_YEAR_MAX = 2078
+SECONDS_PER_DAY = 86400
+SECONDS_PER_HOUR = 3600
+SECONDS_PER_MINUTE = 60
+
 CPM_FORMATS = {
-    "z9001-800k": (819200, 2048, 3, True, 0),
-    "msdos-1200k": (1228800, 4096, 2, True, 0),
-    "msdos-1440k": (1474560, 4096, 2, True, 0),
+    "z9001-800k": (819200, 2048, 3, True, 0, False),
+    "msdos-1200k": (1228800, 4096, 2, True, 0, False),
+    "msdos-1440k": (1474560, 4096, 2, True, 0, False),
+    "mldos-1738k": (1802240, 4096, 2, True, 22528, True),
 }
 
 DEFAULT_FORMAT = "z9001-800k"
@@ -110,9 +125,110 @@ def entry_block_pointers(entry, block_num_16bit):
     return pointers
 
 
+def to_bcd(value):
+    return (((value // 10) % 10) << 4) | (value % 10)
+
+
+def from_bcd(value):
+    high = value >> 4
+    low = value & 0x0F
+    if high > 9 or low > 9:
+        return None
+    return high * 10 + low
+
+
+def civil_from_unix(secs):
+    days = secs // SECONDS_PER_DAY
+    rem = secs % SECONDS_PER_DAY
+    hour = rem // SECONDS_PER_HOUR
+    minute = (rem % SECONDS_PER_HOUR) // SECONDS_PER_MINUTE
+    z = days + 719468
+    era = (z if z >= 0 else z - 146096) // 146097
+    doe = z - era * 146097
+    yoe = (doe - doe // 1460 + doe // 36524 - doe // 146096) // 365
+    doy = doe - (365 * yoe + yoe // 4 - yoe // 100)
+    mp = (5 * doy + 2) // 153
+    day = doy - (153 * mp + 2) // 5 + 1
+    month = mp + 3 if mp < 10 else mp - 9
+    year = yoe + era * 400 + (1 if month <= 2 else 0)
+    return year, month, day, hour, minute
+
+
+def days_from_civil(year, month, day):
+    y = year - 1 if month <= 2 else year
+    era = (y if y >= 0 else y - 399) // 400
+    yoe = y - era * 400
+    mp = month - 3 if month > 2 else month + 9
+    doy = (153 * mp + 2) // 5 + day - 1
+    doe = yoe * 365 + yoe // 4 - yoe // 100 + doy
+    return era * 146097 + doe - 719468
+
+
+def write_stamp(buf, offset, secs):
+    if secs is None:
+        return
+    year, month, day, hour, minute = civil_from_unix(secs)
+    if DS_YEAR_MIN <= year < DS_YEAR_MAX and offset + DS_STAMP_LEN <= len(buf):
+        buf[offset] = to_bcd(year % 100)
+        buf[offset + 1] = to_bcd(month)
+        buf[offset + 2] = to_bcd(day)
+        buf[offset + 3] = to_bcd(hour)
+        buf[offset + 4] = to_bcd(minute)
+
+
+def stamp_to_unix(buf, offset):
+    if offset + DS_STAMP_LEN > len(buf):
+        return None
+    fields = [from_bcd(buf[offset + index]) for index in range(DS_STAMP_LEN)]
+    if any(field is None for field in fields):
+        return None
+    yy, month, day, hour, minute = fields
+    if month == 0 or month > 12 or day == 0 or day > 31:
+        return None
+    year = 1900 + yy if yy >= DS_YEAR_MIN % 100 else 2000 + yy
+    return (
+        days_from_civil(year, month, day) * SECONDS_PER_DAY
+        + hour * SECONDS_PER_HOUR
+        + minute * SECONDS_PER_MINUTE
+    )
+
+
+def build_datestamp(dir_entries, slot_paths):
+    buf = bytearray(dir_entries * DS_RECORD_LEN)
+    signature = 0
+    pos = DS_SIGNATURE_OFFSET
+    while pos < len(buf):
+        buf[pos] = DS_SIGNATURE[signature % len(DS_SIGNATURE)]
+        signature += 1
+        pos += DS_RECORD_LEN
+    for slot, path in slot_paths:
+        base = slot * DS_RECORD_LEN
+        if base + DS_STAMP_COUNT * DS_STAMP_LEN > len(buf):
+            continue
+        try:
+            info = path.stat()
+        except OSError:
+            continue
+        write_stamp(buf, base, int(getattr(info, "st_ctime", info.st_mtime)))
+        write_stamp(buf, base + DS_STAMP_LEN, int(info.st_atime))
+        write_stamp(buf, base + 2 * DS_STAMP_LEN, int(info.st_mtime))
+    pos = 0
+    while pos < len(buf):
+        checksum = 0
+        count = 0
+        while count < DS_CHECKSUM_SPAN and pos < len(buf):
+            checksum = (checksum + buf[pos]) & 0xFFFFFFFF
+            pos += 1
+            count += 1
+        if pos < len(buf):
+            buf[pos] = checksum & 0xFF
+            pos += 1
+    return bytes(buf)
+
+
 def data_area(image, params):
-    _size, block_size, _dir_blocks, _block_num_16bit, sys_tracks = params
-    return image[sys_tracks * block_size :] if sys_tracks else image
+    sys_bytes = params[4]
+    return image[sys_bytes:] if sys_bytes else image
 
 
 def read_block(data, block_size, block):
@@ -121,7 +237,7 @@ def read_block(data, block_size, block):
 
 
 def parse_directory(image, params):
-    _size, block_size, dir_blocks, block_num_16bit, _sys_tracks = params
+    _size, block_size, dir_blocks, block_num_16bit, _sys_bytes, _datestamp = params
     data = data_area(image, params)
     directory = data[: dir_blocks * block_size]
     files = {}
@@ -162,14 +278,46 @@ def assemble_file(extents, data, block_size):
     return bytes(content)
 
 
+def apply_datestamp(image, params, out_dir):
+    block_size = params[1]
+    dir_blocks = params[2]
+    data = data_area(image, params)
+    _order, files = parse_directory(image, params)
+    ds_key = next((key for key in files if key[1].upper() == DS_FILENAME), None)
+    if ds_key is None:
+        return
+    stamps = assemble_file(files[ds_key], data, block_size)
+    directory = data[: dir_blocks * block_size]
+    slot = 0
+    for pos in range(0, len(directory), DIR_ENTRY_LEN):
+        entry = directory[pos : pos + DIR_ENTRY_LEN]
+        if len(entry) < DIR_ENTRY_LEN:
+            break
+        user = entry[0]
+        if user <= MAX_USER and entry_extent_number(entry) == 0:
+            filename = entry_filename(entry)
+            if filename.upper() != DS_FILENAME:
+                secs = stamp_to_unix(stamps, slot * DS_RECORD_LEN + 2 * DS_STAMP_LEN)
+                base = (
+                    out_dir if user == 0 else out_dir / f"{USER_DIR_PREFIX}{user:02d}"
+                )
+                path = base / filename
+                if secs is not None and path.exists():
+                    os.utime(path, (secs, secs))
+        slot += 1
+
+
 def unpack(image, format_name, params, out_dir):
     data = data_area(image, params)
     block_size = params[1]
+    datestamp = params[5]
     order, files = parse_directory(image, params)
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest = {"format": format_name, "files": []}
     for key in order:
         user, filename = key
+        if datestamp and filename.upper() == DS_FILENAME:
+            continue
         extents = files[key]
         content = assemble_file(extents, data, block_size)
         attributes = extents[0][3]
@@ -182,6 +330,8 @@ def unpack(image, format_name, params, out_dir):
     (out_dir / MANIFEST_NAME).write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="latin-1"
     )
+    if datestamp:
+        apply_datestamp(image, params, out_dir)
 
 
 def split_filename(filename):
@@ -286,23 +436,49 @@ def resolve_path(in_dir, user, filename):
 
 
 def repack(in_dir, params, listing):
-    size, block_size, dir_blocks, block_num_16bit, sys_tracks = params
+    size, block_size, dir_blocks, block_num_16bit, sys_bytes, datestamp = params
     discovered = discover_files(in_dir)
     if listing is None:
         listing = discovered
     else:
         known = {(user, filename) for user, filename, _ in listing}
         listing += [item for item in discovered if (item[0], item[1]) not in known]
+    if datestamp:
+        listing = [item for item in listing if item[1].upper() != DS_FILENAME]
 
     total_blocks = size // block_size
     max_dir_entries = dir_blocks * block_size // DIR_ENTRY_LEN
     image = bytearray([FILL_BYTE] * size)
-    data_offset = sys_tracks * block_size
+    data_offset = sys_bytes
     directory = bytearray()
     free_block = dir_blocks
+    slot_paths = []
+    ds_blocks = []
+
+    if datestamp:
+        ds_records = (max_dir_entries * DS_RECORD_LEN + RECORD_SIZE - 1) // RECORD_SIZE
+        ds_block_count = (
+            ds_records + records_per_block(block_size) - 1
+        ) // records_per_block(block_size)
+        if free_block + ds_block_count > total_blocks:
+            raise FilesystemError("image is full")
+        ds_blocks = list(range(free_block, free_block + ds_block_count))
+        free_block += ds_block_count
+        directory += b"".join(
+            file_entries(
+                0,
+                DS_FILENAME,
+                (False, False, False),
+                ds_records,
+                ds_blocks,
+                block_size,
+                block_num_16bit,
+            )
+        )
 
     for user, filename, attributes in listing:
-        content = resolve_path(in_dir, user, filename).read_bytes()
+        path = resolve_path(in_dir, user, filename)
+        content = path.read_bytes()
         records = (len(content) + RECORD_SIZE - 1) // RECORD_SIZE
         block_count = (
             records + records_per_block(block_size) - 1
@@ -317,6 +493,7 @@ def repack(in_dir, params, listing):
             slack_end - start - len(content)
         )
         free_block += block_count
+        slot_paths.append((len(directory) // DIR_ENTRY_LEN, path))
         directory += b"".join(
             file_entries(
                 user, filename, attributes, records, blocks, block_size, block_num_16bit
@@ -328,6 +505,12 @@ def repack(in_dir, params, listing):
             f"directory needs {len(directory) // DIR_ENTRY_LEN} entries, only {max_dir_entries} fit"
         )
     image[data_offset : data_offset + len(directory)] = directory
+
+    if datestamp and ds_blocks:
+        stamps = build_datestamp(max_dir_entries, slot_paths)
+        ds_start = data_offset + ds_blocks[0] * block_size
+        image[ds_start : ds_start + len(stamps)] = stamps
+
     return bytes(image)
 
 
