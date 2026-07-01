@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0
+
+### Addedd
+
+- `--ea-module` emulates the robotron E/A expansion module. When MIDI is enabled, the byte stream is routed to the module's port B (`0xC9`) instead of the system PIO port B (`0x89`), which stays the default.
+
 ## 0.6.1
 
 ### Added
