@@ -341,13 +341,23 @@ impl Machine {
         self.bus.user_slot = peripheral;
     }
 
+    pub fn enable_ea_module(&mut self) {
+        self.bus.enable_ea_module();
+    }
+
+    pub fn plug_ea_peripheral(&mut self, peripheral: UserPeripheral) {
+        self.bus.ea_slot = peripheral;
+    }
+
     #[inline]
     pub fn drain_midi_out<F: FnMut(&[(u8, u64)])>(&mut self, mut f: F) {
-        if let UserPeripheral::Midi(midi) = &mut self.bus.user_slot
-            && !midi.out_buffer.is_empty()
-        {
-            f(&midi.out_buffer);
-            midi.out_buffer.clear();
+        for slot in [&mut self.bus.user_slot, &mut self.bus.ea_slot] {
+            if let UserPeripheral::Midi(midi) = slot
+                && !midi.out_buffer.is_empty()
+            {
+                f(&midi.out_buffer);
+                midi.out_buffer.clear();
+            }
         }
     }
 

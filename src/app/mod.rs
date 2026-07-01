@@ -342,6 +342,7 @@ pub struct MachineConfig {
     pub autorun: bool,
     pub program_name: String,
     pub midi_enabled: bool,
+    pub ea_module: bool,
     pub floppy_mounts: Vec<DiskMount>,
 }
 
@@ -357,8 +358,16 @@ impl MachineConfig {
             self.sample_rate,
         );
 
+        if self.ea_module {
+            machine.enable_ea_module();
+        }
         if self.midi_enabled {
-            machine.plug_user_peripheral(UserPeripheral::Midi(MidiInterface::new()));
+            let midi = UserPeripheral::Midi(MidiInterface::new());
+            if self.ea_module {
+                machine.plug_ea_peripheral(midi);
+            } else {
+                machine.plug_user_peripheral(midi);
+            }
         }
 
         for (drive, mount) in self.floppy_mounts.iter().enumerate() {

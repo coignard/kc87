@@ -82,6 +82,8 @@ mod ports {
     pub const FDC_CONTROL_BASE: u8 = 0xA0;
     pub const FDC_CONTROL_TC: u8 = 0x10;
     pub const FDC_CONTROL_RESET: u8 = 0x20;
+    pub const EA_BASE_C8: u8 = 0xC8;
+    pub const EA_PORT_MASK: u8 = 0xFC;
 }
 
 const RAM_LAYER: usize = 0;
@@ -358,6 +360,14 @@ pub struct Bus {
     #[serde(skip)]
     prev_user_write: bool,
     #[serde(skip)]
+    pub pio_ea: U855,
+    #[serde(skip)]
+    pub ea_present: bool,
+    #[serde(skip)]
+    pub ea_slot: UserPeripheral,
+    #[serde(skip)]
+    prev_ea_write: bool,
+    #[serde(skip)]
     line_tstates: u32,
     #[serde(skip)]
     line_num: u32,
@@ -548,6 +558,10 @@ impl Bus {
             c80_memswap: false,
             current_cycle: 0,
             prev_user_write: false,
+            pio_ea: U855::new(),
+            ea_present: false,
+            ea_slot: UserPeripheral::None,
+            prev_ea_write: false,
             line_tstates: 0,
             line_num: 0,
             wait_pending: 0,
@@ -569,6 +583,10 @@ impl Bus {
         if let Some(fdc) = &mut self.fdc {
             fdc.insert_disk(drive_num, disk);
         }
+    }
+
+    pub fn enable_ea_module(&mut self) {
+        self.ea_present = true;
     }
 
     #[inline]
@@ -856,6 +874,34 @@ impl Bus {
         pins = self.pio1.tick(pins);
         self.sys_porta = self.pio1.output_a();
         pins &= pins::PIN_MASK;
+
+        if self.ea_present {
+            if (pins & (pins::IORQ | pins::M1)) == pins::IORQ
+                && ((pins::addr(pins) & PORT_ADDR_MASK) as u8 & ports::EA_PORT_MASK)
+                    == ports::EA_BASE_C8
+            {
+                pins |= u855::CE;
+                if (pins & pins::A0) != 0 {
+                    pins |= u855::BASEL;
+                }
+                if (pins & pins::A1) != 0 {
+                    pins |= u855::CDSEL;
+                }
+            }
+            let ea_write = (pins & (u855::CE | pins::IORQ | pins::M1 | pins::RD))
+                == (u855::CE | pins::IORQ)
+                && (pins & u855::BASEL) != 0
+                && (pins & u855::CDSEL) == 0;
+            if ea_write
+                && !self.prev_ea_write
+                && let UserPeripheral::Midi(midi) = &mut self.ea_slot
+            {
+                midi.push_byte(pins::data(pins), self.current_cycle);
+            }
+            self.prev_ea_write = ea_write;
+            pins = self.pio_ea.tick(pins);
+            pins &= pins::PIN_MASK;
+        }
 
         pins |= self.ctc_zcto2;
         if Self::is_io_device(pins, 0) {

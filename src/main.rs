@@ -546,6 +546,10 @@ struct Args {
     #[arg(long, help_heading = "MIDI options")]
     midi_list: bool,
 
+    /// Emulate the E/A expansion module
+    #[arg(long = "ea-module", help_heading = "Extension options")]
+    ea_module: bool,
+
     /// Enable debug hotkeys
     #[arg(long, help_heading = "Debug options")]
     debug: bool,
@@ -871,6 +875,7 @@ fn main() -> Result<()> {
         autorun,
         program_name,
         midi_enabled,
+        ea_module: args.ea_module,
         floppy_mounts,
     };
 
