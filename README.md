@@ -5,7 +5,7 @@
   </picture>
 </a>
 
-Robotron KC 87 emulator with MIDI support via PIO
+Robotron KC 87 emulator with MIDI support via E/A-Modul
 
 [![CI](https://github.com/coignard/kc87/workflows/CI/badge.svg)](https://github.com/coignard/kc87/actions)
 [![CodeQL](https://github.com/coignard/kc87/workflows/CodeQL/badge.svg)](https://github.com/coignard/kc87/security/code-scanning)
