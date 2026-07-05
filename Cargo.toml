@@ -7,7 +7,7 @@ authors = [
 edition = "2024"
 rust-version = "1.96"
 license = "GPL-3.0-or-later"
-description = "Robotron KC 87 emulator with MIDI support via PIO"
+description = "Robotron KC 87 emulator with MIDI support via E/A-Modul"
 homepage = "https://coignard.org/kc87"
 repository = "https://github.com/coignard/kc87"
 readme = "README.md"
@@ -16,7 +16,7 @@ categories = ["emulators"]
 exclude = [".github/*"]
 
 [dependencies]
-anyhow = "1.0.102"
+anyhow = "1.0.103"
 assert-json-diff = "2.0.2"
 chrono = "0.4.45"
 clap = { version = "4.6.1", features = ["derive"] }
@@ -47,20 +47,20 @@ winit = { version = "0.30.13", default-features = false, features = [
 
 [target.'cfg(target_os = "macos")'.dependencies]
 coremidi = "0.9.1"
-libc = "0.2"
-block2 = "0.6"
-objc2 = "0.6"
-objc2-core-audio = "0.3"
-objc2-core-audio-types = "0.3"
-dispatch2 = { version = "0.3", default-features = false, features = ["std"] }
-objc2-foundation = { version = "0.3", default-features = false, features = [
+libc = "0.2.186"
+block2 = "0.6.2"
+objc2 = "0.6.4"
+objc2-core-audio = "0.3.2"
+objc2-core-audio-types = "0.3.2"
+dispatch2 = { version = "0.3.1", default-features = false, features = ["std"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
     "std",
     "NSArray",
     "NSString",
     "NSUUID",
     "NSValue",
 ] }
-objc2-core-foundation = { version = "0.3", default-features = false, features = [
+objc2-core-foundation = { version = "0.3.2", default-features = false, features = [
     "std",
     "CFBase",
     "CFString",
