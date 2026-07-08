@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.1
+
+### Changed
+
+- Bumped crossbeam-channel from 0.5.15 to 0.5.16.
+- Bumped crossbeam-epoch from 0.9.18 to 0.9.20.
+
 ## 0.7.0
 
 ### Addedd
