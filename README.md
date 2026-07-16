@@ -9,7 +9,6 @@ Robotron KC 87 emulator with MIDI support via E/A-Modul
 
 [![CI](https://github.com/coignard/kc87/workflows/CI/badge.svg)](https://github.com/coignard/kc87/actions)
 [![CodeQL](https://github.com/coignard/kc87/workflows/CodeQL/badge.svg)](https://github.com/coignard/kc87/security/code-scanning)
-[![dependency status](https://deps.rs/repo/github/coignard/kc87/status.svg)](https://deps.rs/repo/github/coignard/kc87)
 [![Crates.io](https://img.shields.io/crates/v/kc87.svg?logo=rust)](https://crates.io/crates/kc87)
 [![License: GPL-3.0-or-later](https://img.shields.io/crates/l/kc87.svg)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/coignard)
