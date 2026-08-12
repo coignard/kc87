@@ -5,7 +5,7 @@
   </picture>
 </a>
 
-Robotron KC 87 emulator with MIDI support via E/A-Modul
+Robotron KC 87 emulator with MIDI support via PIO
 
 [![CI](https://github.com/coignard/kc87/workflows/CI/badge.svg)](https://github.com/coignard/kc87/actions)
 [![CodeQL](https://github.com/coignard/kc87/workflows/CodeQL/badge.svg)](https://github.com/coignard/kc87/security/code-scanning)
@@ -55,7 +55,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-kc87 = "0.7.3"
+kc87 = "0.7.4"
 ```
 
 ## Test
