@@ -142,8 +142,8 @@ impl VideoRenderer {
         let has_color = machine_type == MachineType::KC87;
         let frame_border = resolve_color(border_color, has_color);
 
-        for px in self.frame_buffer.chunks_exact_mut(BYTES_PER_PIXEL) {
-            px.copy_from_slice(&frame_border);
+        for px in self.frame_buffer.as_chunks_mut::<BYTES_PER_PIXEL>().0 {
+            *px = frame_border;
         }
 
         if bus.graph_robotron_active() {
